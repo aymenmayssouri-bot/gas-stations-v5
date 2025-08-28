@@ -1,0 +1,256 @@
+// src/hooks/stations/useUpdateStation.ts
+import { useCallback, useState } from 'react';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  getDoc,
+  doc,
+  writeBatch,
+  Timestamp,
+  updateDoc,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import {
+  Station,
+  Marque,
+  Province,
+  Commune,
+  Gerant,
+  Proprietaire,
+  ProprietairePhysique,
+  ProprietaireMorale,
+  Autorisation,
+  CapaciteStockage,
+  StationFormData,
+} from '@/types/station';
+
+const COLLECTIONS = {
+  STATIONS: 'stations',
+  PROVINCES: 'provinces',
+  COMMUNES: 'communes',
+  MARQUES: 'marques',
+  GERANTS: 'gerants',
+  PROPRIETAIRES: 'proprietaires',
+  PROPRIETAIRES_PHYSIQUES: 'proprietaires_physiques',
+  PROPRIETAIRES_MORALES: 'proprietaires_morales',
+  AUTORISATIONS: 'autorisations',
+  CAPACITES_STOCKAGE: 'capacites_stockage',
+};
+
+export function useUpdateStation() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const updateStation = useCallback(async (stationId: string, formData: StationFormData) => {
+    setLoading(true);
+    setError(null);
+    const batch = writeBatch(db);
+    const stationRef = doc(db, COLLECTIONS.STATIONS, stationId);
+
+    try {
+      // 1. Find or create Marque
+      let marqueId: string;
+      const existingMarqueSnapshot = await getDocs(
+        query(collection(db, COLLECTIONS.MARQUES), where('Marque', '==', formData.Marque.trim()))
+      );
+      if (!existingMarqueSnapshot.empty) {
+        marqueId = existingMarqueSnapshot.docs[0].id;
+      } else {
+        const marqueRef = doc(collection(db, COLLECTIONS.MARQUES));
+        const marque: Marque = {
+          Marque: formData.Marque.trim(),
+          RaisonSociale: formData.RaisonSociale.trim(),
+        };
+        batch.set(marqueRef, marque);
+        marqueId = marqueRef.id;
+      }
+
+      // 2. Find or create Province
+      let provinceId: string;
+      const existingProvinceSnapshot = await getDocs(
+        query(collection(db, COLLECTIONS.PROVINCES), where('Province', '==', formData.Province.trim()))
+      );
+      if (!existingProvinceSnapshot.empty) {
+        provinceId = existingProvinceSnapshot.docs[0].id;
+      } else {
+        const provinceRef = doc(collection(db, COLLECTIONS.PROVINCES));
+        const province: Province = { Province: formData.Province.trim() };
+        batch.set(provinceRef, province);
+        provinceId = provinceRef.id;
+      }
+
+      // 3. Find or create Commune
+      let communeId: string;
+      const existingCommuneSnapshot = await getDocs(
+        query(
+          collection(db, COLLECTIONS.COMMUNES),
+          where('Commune', '==', formData.Commune.trim()),
+          where('ProvinceID', '==', provinceId)
+        )
+      );
+      if (!existingCommuneSnapshot.empty) {
+        communeId = existingCommuneSnapshot.docs[0].id;
+      } else {
+        const communeRef = doc(collection(db, COLLECTIONS.COMMUNES));
+        const commune: Commune = {
+          Commune: formData.Commune.trim(),
+          ProvinceID: provinceId,
+        };
+        batch.set(communeRef, commune);
+        communeId = communeRef.id;
+      }
+
+      // 4. Find or create Gerant
+      let gerantId: string;
+      const existingGerantSnapshot = await getDocs(
+        query(
+          collection(db, COLLECTIONS.GERANTS),
+          where('Gerant', '==', formData.Gerant.trim()),
+          where('CINGerant', '==', formData.CINGerant.trim())
+        )
+      );
+      if (!existingGerantSnapshot.empty) {
+        gerantId = existingGerantSnapshot.docs[0].id;
+      } else {
+        const gerantRef = doc(collection(db, COLLECTIONS.GERANTS));
+        const gerant: Gerant = {
+          Gerant: formData.Gerant.trim(),
+          CINGerant: formData.CINGerant.trim(),
+          Telephone: formData.Telephone.trim() || undefined,
+        };
+        batch.set(gerantRef, gerant);
+        gerantId = gerantRef.id;
+      }
+
+      // 5. Update Station document
+      const updatedStationData: Partial<Station> = {
+        NomStation: formData.NomStation.trim(),
+        Adresse: formData.Adresse.trim(),
+        Latitude: formData.Latitude ? parseFloat(formData.Latitude) : null,
+        Longitude: formData.Longitude ? parseFloat(formData.Longitude) : null,
+        Type: formData.Type,
+        MarqueID: marqueId,
+        CommuneID: communeId,
+        GerantID: gerantId,
+        // ProprietaireID is handled separately below
+      };
+      batch.update(stationRef, updatedStationData);
+
+      // 6. Handle Proprietaire Update
+      const oldStationDoc = await getDoc(stationRef);
+      const oldProprietaireID = oldStationDoc.data()?.ProprietaireID;
+
+      // Delete old proprietaire details if type changes or if it is removed
+      if (oldProprietaireID) {
+        const oldProprietaireDoc = await getDoc(doc(db, COLLECTIONS.PROPRIETAIRES, oldProprietaireID));
+        if (oldProprietaireDoc.exists()) {
+          const oldType = oldProprietaireDoc.data()?.TypeProprietaire;
+          if (oldType !== formData.TypeProprietaire) {
+            batch.delete(oldProprietaireDoc.ref);
+            if (oldType === 'Physique') {
+              const oldPhysiqueSnapshot = await getDocs(query(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES), where('ProprietaireID', '==', oldProprietaireID)));
+              oldPhysiqueSnapshot.docs.forEach(d => batch.delete(d.ref));
+            } else {
+              const oldMoraleSnapshot = await getDocs(query(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES), where('ProprietaireID', '==', oldProprietaireID)));
+              oldMoraleSnapshot.docs.forEach(d => batch.delete(d.ref));
+            }
+          }
+        }
+      }
+
+      // Create or update new proprietaire
+      let newProprietaireId = oldProprietaireID;
+      const proprietaireName = formData.TypeProprietaire === 'Physique' ? formData.NomProprietaire.trim() : formData.NomEntreprise.trim();
+      
+      if (proprietaireName) {
+        // If the type is the same, just update the sub-document
+        if (oldProprietaireID && oldStationDoc.data()?.TypeProprietaire === formData.TypeProprietaire) {
+            if (formData.TypeProprietaire === 'Physique') {
+                const physiqueSnapshot = await getDocs(query(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES), where('ProprietaireID', '==', oldProprietaireID)));
+                if (!physiqueSnapshot.empty) {
+                    batch.update(physiqueSnapshot.docs[0].ref, { NomProprietaire: formData.NomProprietaire.trim() });
+                }
+            } else {
+                const moraleSnapshot = await getDocs(query(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES), where('ProprietaireID', '==', oldProprietaireID)));
+                if (!moraleSnapshot.empty) {
+                    batch.update(moraleSnapshot.docs[0].ref, { NomEntreprise: formData.NomEntreprise.trim() });
+                }
+            }
+        } else { // Create a new proprietaire
+            const proprietaireRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES));
+            const proprietaire: Proprietaire = { TypeProprietaire: formData.TypeProprietaire };
+            batch.set(proprietaireRef, proprietaire);
+            newProprietaireId = proprietaireRef.id;
+
+            if (formData.TypeProprietaire === 'Physique') {
+                const physiqueRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES));
+                const physique: ProprietairePhysique = { ProprietaireID: newProprietaireId, NomProprietaire: formData.NomProprietaire.trim() };
+                batch.set(physiqueRef, physique);
+            } else {
+                const moraleRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES));
+                const morale: ProprietaireMorale = { ProprietaireID: newProprietaireId, NomEntreprise: formData.NomEntreprise.trim() };
+                batch.set(moraleRef, morale);
+            }
+        }
+      }
+      
+      batch.update(stationRef, { ProprietaireID: newProprietaireId });
+
+      // 7. Delete and re-create Autorisations for simplicity
+      const oldAutorisationsSnapshot = await getDocs(
+        query(collection(db, COLLECTIONS.AUTORISATIONS), where('StationID', '==', stationId))
+      );
+      oldAutorisationsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+
+      if (formData.NumeroAutorisation.trim()) {
+        const autorisationRef = doc(collection(db, COLLECTIONS.AUTORISATIONS));
+        const autorisation: Autorisation = {
+          StationID: stationId,
+          TypeAutorisation: formData.TypeAutorisation,
+          NumeroAutorisation: formData.NumeroAutorisation.trim(),
+          DateAutorisation: formData.DateAutorisation ?
+            Timestamp.fromDate(new Date(formData.DateAutorisation)).toDate() : null,
+        };
+        batch.set(autorisationRef, autorisation);
+      }
+
+      // 8. Delete and re-create Capacites for simplicity
+      const oldCapacitesSnapshot = await getDocs(
+        query(collection(db, COLLECTIONS.CAPACITES_STOCKAGE), where('StationID', '==', stationId))
+      );
+      oldCapacitesSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+
+      if (formData.CapaciteGasoil.trim()) {
+        const capaciteRef = doc(collection(db, COLLECTIONS.CAPACITES_STOCKAGE));
+        const capacite: CapaciteStockage = {
+          StationID: stationId,
+          TypeCarburant: 'Gasoil',
+          CapaciteLitres: parseFloat(formData.CapaciteGasoil),
+        };
+        batch.set(capaciteRef, capacite);
+      }
+      if (formData.CapaciteSSP.trim()) {
+        const capaciteRef = doc(collection(db, COLLECTIONS.CAPACITES_STOCKAGE));
+        const capacite: CapaciteStockage = {
+          StationID: stationId,
+          TypeCarburant: 'SSP',
+          CapaciteLitres: parseFloat(formData.CapaciteSSP),
+        };
+        batch.set(capaciteRef, capacite);
+      }
+
+      // Commit all changes
+      await batch.commit();
+
+    } catch (err: any) {
+      console.error('Error updating station:', err);
+      setError(`Failed to update station: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { updateStation, loading, error };
+}

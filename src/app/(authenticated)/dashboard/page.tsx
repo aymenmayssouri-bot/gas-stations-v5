@@ -1,7 +1,8 @@
+// src/app/(authenticated)/dashboard/page-normalized.tsx
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useGasStations } from '@/hooks/useGasStations';
+import { useStations } from '@/hooks/stations/useStations';
 import { useAuth } from '@/lib/auth/provider';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -9,22 +10,22 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import MapPreview from '@/components/dashboard/MapPreview';
-import { GasStation } from '@/types/station';
+import { StationWithDetails } from '@/types/station';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function formatCapacity(n: number) {
   return new Intl.NumberFormat('fr-FR').format(n) + ' L';
 }
 
-export default function DashboardPage() {
-  const { stations, loading, error } = useGasStations();
+export default function NormalizedDashboardPage() {
+  const { stations, loading, error } = useStations();
   const { currentUser } = useAuth();
 
   // ----- Filters (by Province, Commune, Marque) -----
   const provinces = useMemo(() => {
     const set = new Set<string>();
     stations.forEach(s => {
-      const province = s['Province'];
+      const province = s.province.Province;
       if (province && province.trim()) {
         set.add(province.trim());
       }
@@ -35,7 +36,7 @@ export default function DashboardPage() {
   const marques = useMemo(() => {
     const set = new Set<string>();
     stations.forEach(s => {
-      const marque = s['Marque'];
+      const marque = s.marque.Marque;
       if (marque && marque.trim()) {
         set.add(marque.trim());
       }
@@ -66,8 +67,8 @@ export default function DashboardPage() {
     
     const set = new Set<string>();
     stations.forEach(s => {
-      const province = s['Province'];
-      const commune = s['Commune'];
+      const province = s.province.Province;
+      const commune = s.commune.Commune;
       if (province && commune && commune.trim() && selectedProvinces.includes(province.trim())) {
         set.add(commune.trim());
       }
@@ -135,17 +136,17 @@ export default function DashboardPage() {
   const filtered = useMemo(() => {
     return stations.filter(s => {
       // Province filter
-      const province = s['Province'];
+      const province = s.province.Province;
       if (!province || !selectedProvinces.includes(province.trim())) return false;
       
       // Commune filter (only if single province is selected)
       if (selectedProvinces.length === 1) {
-        const commune = s['Commune'];
+        const commune = s.commune.Commune;
         if (!commune || !selectedCommunes.includes(commune.trim())) return false;
       }
       
       // Marque filter
-      const marque = s['Marque'];
+      const marque = s.marque.Marque;
       if (!marque || !selectedMarques.includes(marque.trim())) return false;
       
       return true;
@@ -159,14 +160,14 @@ export default function DashboardPage() {
     let totalSSP = 0;
 
     filtered.forEach(s => {
-      const gasoil = s['Capacité Gasoil'];
-      const ssp = s['Capacité SSP'];
+      const gasoilCapacite = s.capacites.find(c => c.TypeCarburant === 'Gasoil');
+      const sspCapacite = s.capacites.find(c => c.TypeCarburant === 'SSP');
       
-      if (typeof gasoil === 'number' && gasoil > 0) {
-        totalGasoil += gasoil;
+      if (gasoilCapacite) {
+        totalGasoil += gasoilCapacite.CapaciteLitres;
       }
-      if (typeof ssp === 'number' && ssp > 0) {
-        totalSSP += ssp;
+      if (sspCapacite) {
+        totalSSP += sspCapacite.CapaciteLitres;
       }
     });
 
@@ -178,7 +179,7 @@ export default function DashboardPage() {
     const brandCounts = new Map<string, number>();
     
     filtered.forEach(s => {
-      const brand = s['Marque'];
+      const brand = s.marque.Marque;
       if (brand && brand.trim()) {
         const trimmedBrand = brand.trim();
         brandCounts.set(trimmedBrand, (brandCounts.get(trimmedBrand) || 0) + 1);
@@ -224,7 +225,10 @@ export default function DashboardPage() {
       <div className="p-6">
         <h2 className="text-lg font-semibold mb-4 text-gray-900">No Data Found</h2>
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800">No gas stations found in the database.</p>
+          <p className="text-yellow-800">No gas stations found in the normalized database.</p>
+          <p className="text-yellow-700 text-sm mt-2">
+            If you haven't migrated your data yet, please run the migration tool first.
+          </p>
         </div>
       </div>
     );
@@ -234,8 +238,8 @@ export default function DashboardPage() {
     <div className="p-6 space-y-6 text-gray-900">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Stations-service</h1>
-        <p className="text-sm text-gray-600">Vue d'ensemble, filtres par province/commune/marque.</p>
+        <h1 className="text-2xl font-bold text-gray-900">Stations-service (Normalized)</h1>
+        <p className="text-sm text-gray-600">Vue d'ensemble avec structure de base de données normalisée.</p>
       </div>
 
       {/* Stats */}
@@ -253,7 +257,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* Filters - Same UI as before */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Province Filter */}
         <Card>
@@ -372,7 +376,7 @@ export default function DashboardPage() {
         </div>
       </Card>
 
-      {/* Map with updated MapPreview component */}
+      {/* Map with normalized data */}
       <Card>
         <h2 className="text-lg font-semibold text-gray-900 mb-2">Carte des stations</h2>
         <div className="h-96">

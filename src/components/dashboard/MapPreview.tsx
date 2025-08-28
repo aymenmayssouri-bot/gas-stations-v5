@@ -1,8 +1,11 @@
+// src/components/dashboard/MapPreviewNormalized.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GoogleMap, useLoadScript, Marker, InfoWindow } from '@react-google-maps/api';
-import { GasStation } from '@/types/station';
+import { StationWithDetails } from '@/types/station';
 
-interface MapPreviewProps { stations: GasStation[]; }
+interface MapPreviewProps { 
+  stations: StationWithDetails[]; 
+}
 
 const mapContainerStyle = { width: '100%', height: '480px', borderRadius: '16px' };
 
@@ -11,13 +14,13 @@ function formatCapacity(capacity: number | null): string {
   return `${capacity.toLocaleString('fr-FR')} L`;
 }
 
-export default function MapPreview({ stations }: MapPreviewProps) {
+export default function MapPreviewNormalized({ stations }: MapPreviewProps) {
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
   });
 
   const mapRef = useRef<google.maps.Map | null>(null);
-  const [selected, setSelected] = useState<GasStation | null>(null);
+  const [selected, setSelected] = useState<StationWithDetails | null>(null);
 
   const center = useMemo(() => {
     // fallback to Casablanca if no coords
@@ -31,8 +34,8 @@ export default function MapPreview({ stations }: MapPreviewProps) {
     const bounds = new google.maps.LatLngBounds();
     let has = false;
     stations.forEach((s) => {
-      if (s.Latitude != null && s.Longitude != null) {
-        bounds.extend({ lat: s.Latitude, lng: s.Longitude });
+      if (s.station.Latitude != null && s.station.Longitude != null) {
+        bounds.extend({ lat: s.station.Latitude, lng: s.station.Longitude });
         has = true;
       }
     });
@@ -44,49 +47,70 @@ export default function MapPreview({ stations }: MapPreviewProps) {
   return (
     <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={10} onLoad={onLoad}>
       {stations.map((s) =>
-        s.Latitude != null && s.Longitude != null ? (
+        s.station.Latitude != null && s.station.Longitude != null ? (
           <Marker
-            key={s.id}
-            position={{ lat: s.Latitude, lng: s.Longitude }}
+            key={s.station.id}
+            position={{ lat: s.station.Latitude, lng: s.station.Longitude }}
             onClick={() => setSelected(s)}
           />
         ) : null
       )}
 
-      {selected && selected.Latitude != null && selected.Longitude != null && (
+      {selected && selected.station.Latitude != null && selected.station.Longitude != null && (
         <InfoWindow
-          position={{ lat: selected.Latitude, lng: selected.Longitude }}
+          position={{ lat: selected.station.Latitude, lng: selected.station.Longitude }}
           onCloseClick={() => setSelected(null)}
         >
           <div className="text-sm max-w-xs">
             <div className="space-y-2">
               <div>
-                <strong>Marque:</strong> {selected['Marque'] || 'N/A'}
+                <strong>Station:</strong> {selected.station.NomStation}
               </div>
               <div>
-                <strong>Propriétaire:</strong> {selected['Propriétaire'] || 'N/A'}
+                <strong>Marque:</strong> {selected.marque.Marque}
               </div>
               <div>
-                <strong>Nom de Station:</strong> {selected['Nom de Station'] || 'N/A'}
+                <strong>Adresse:</strong> {selected.station.Adresse}
               </div>
               <div>
-                <strong>Commune:</strong> {selected['Commune'] || 'N/A'}
+                <strong>Commune:</strong> {selected.commune.Commune}
               </div>
               <div>
-                <strong>Latitude:</strong> {selected['Latitude']?.toFixed(6) || 'N/A'}
+                <strong>Province:</strong> {selected.province.Province}
               </div>
               <div>
-                <strong>Longitude:</strong> {selected['Longitude']?.toFixed(6) || 'N/A'}
+                <strong>Gérant:</strong> {selected.gerant.Gerant}
               </div>
               <div>
-                <strong>Capacité Gasoil:</strong> {formatCapacity(selected['Capacité Gasoil'])}
+                <strong>Type:</strong> {selected.station.Type}
               </div>
               <div>
-                <strong>Capacité SSP:</strong> {formatCapacity(selected['Capacité SSP'])}
+                <strong>Coordonnées:</strong> {selected.station.Latitude?.toFixed(6)}, {selected.station.Longitude?.toFixed(6)}
               </div>
-              <div>
-                <strong>Téléphone:</strong> {selected['numéro de Téléphone'] || 'N/A'}
-              </div>
+              {selected.capacites.length > 0 && (
+                <div>
+                  <strong>Capacités:</strong>
+                  {selected.capacites.map(cap => (
+                    <div key={cap.id} className="ml-2">
+                      {cap.TypeCarburant}: {formatCapacity(cap.CapaciteLitres)}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {selected.gerant.Telephone && (
+                <div>
+                  <strong>Téléphone:</strong> {selected.gerant.Telephone}
+                </div>
+              )}
+              {selected.proprietaire && (
+                <div>
+                  <strong>Propriétaire:</strong> {
+                    selected.proprietaire.base.TypeProprietaire === 'Physique' 
+                      ? (selected.proprietaire.details as any).NomProprietaire
+                      : (selected.proprietaire.details as any).NomEntreprise
+                  }
+                </div>
+              )}
             </div>
           </div>
         </InfoWindow>
