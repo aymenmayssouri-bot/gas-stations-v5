@@ -1,7 +1,7 @@
 // src/app/(authenticated)/stations/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { StationWithDetails } from '@/types/station';
 import { StationForm } from '@/components/stations/StationForm';
 import { StationsTable } from '@/components/stations/StationsTable';
@@ -11,13 +11,59 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { useStations } from '@/hooks/stations/useStations';
 import { useDeleteStation } from '@/hooks/stations/useDeleteStation';
+import { SortConfig } from '@/types/table';
 
 export default function NormalizedStationsPage() {
   const { stations, loading, error, refetch } = useStations();
   const { deleteStation } = useDeleteStation();
+
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<StationWithDetails | undefined>(undefined);
 
+  // 🔹 Table state
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: 'NomStation',
+    direction: 'asc',
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // 🔹 Derived stations with search, sort, pagination
+  const filteredStations = useMemo(() => {
+    let data = [...stations];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      data = data.filter((s) =>
+        s.station.NomStation.toLowerCase().includes(query) ||
+        s.commune.Commune.toLowerCase().includes(query) ||
+        s.marque.Marque.toLowerCase().includes(query)
+      );
+    }
+
+    // sorting
+    if (sortConfig.key) {
+      data.sort((a, b) => {
+        const aVal = (a.station as any)[sortConfig.key] ?? '';
+        const bVal = (b.station as any)[sortConfig.key] ?? '';
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return data;
+  }, [stations, searchQuery, sortConfig]);
+
+  const totalPages = Math.ceil(filteredStations.length / pageSize);
+
+  const paginatedStations = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredStations.slice(start, start + pageSize);
+  }, [filteredStations, currentPage, pageSize]);
+
+  // 🔹 Handlers
   const handleAdd = () => {
     setEditing(undefined);
     setShowForm(true);
@@ -32,7 +78,7 @@ export default function NormalizedStationsPage() {
     const confirmed = window.confirm(
       `Êtes-vous sûr de vouloir supprimer la station \"${stationData.station.NomStation}\" ? Cette action est irréversible.`
     );
-    
+
     if (confirmed) {
       if (stationData.station.id) {
         try {
@@ -43,11 +89,12 @@ export default function NormalizedStationsPage() {
           alert('Une erreur est survenue lors de la suppression de la station');
         }
       } else {
-        alert('Erreur: L\'identifiant de la station est manquant.');
+        alert("Erreur: L'identifiant de la station est manquant.");
       }
     }
   };
 
+  // 🔹 Render
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -76,22 +123,33 @@ export default function NormalizedStationsPage() {
         <Button onClick={handleAdd}>Ajouter une station</Button>
       </div>
 
-      <StationsTable 
-        stations={stations} 
-        onEdit={handleEdit} 
-        onDelete={handleDelete} 
+      <StationsTable
+        stations={paginatedStations}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        sortConfig={sortConfig}
+        onSortChange={setSortConfig}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
       />
 
-      <Modal 
-        isOpen={showForm} 
-        onClose={() => setShowForm(false)} 
+      <Modal
+        isOpen={showForm}
+        onClose={() => setShowForm(false)}
         title={editing ? 'Modifier la station' : 'Créer une station'}
         size="xl"
       >
-        <StationForm mode={editing ? 'edit' : 'create'} station={editing} onSaved={() => {
+        <StationForm
+          mode={editing ? 'edit' : 'create'}
+          station={editing}
+          onSaved={() => {
             setShowForm(false);
             refetch();
-        }} />
+          }}
+        />
       </Modal>
     </div>
   );

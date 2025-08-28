@@ -1,26 +1,38 @@
-// TablePagination.tsx
+//src\components\stations\TablePagination.tsx
 'use client';
 
-import { PaginationInfo } from '@/types/table';
-import { generatePageNumbers } from '@/lib/utils/tableUtils';
-import  Button  from '@/components/ui/Button';
+import Button from '@/components/ui/Button';
 
 interface TablePaginationProps {
-  pagination: PaginationInfo;
+  currentPage: number;
+  totalPages: number;
   onPageChange: (page: number) => void;
 }
 
-export function TablePagination({ pagination, onPageChange }: TablePaginationProps) {
-  const { currentPage, totalPages } = pagination;
-  const pageNumbers = generatePageNumbers(currentPage, totalPages);
+export default function TablePagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: TablePaginationProps) {
+  const generatePageNumbers = () => {
+    const pages: (number | string)[] = [];
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+        pages.push(i);
+      } else if (
+        pages[pages.length - 1] !== '...' &&
+        (i === currentPage - 2 || i === currentPage + 2)
+      ) {
+        pages.push('...');
+      }
+    }
+    return pages;
+  };
+
+  const pageNumbers = generatePageNumbers();
 
   return (
-    <div className="flex items-center justify-between">
-      <div className="text-sm text-gray-700">
-        Showing {pagination.startIndex + 1} to {pagination.endIndex} of{' '}
-        {pagination.totalItems} results
-      </div>
-
+    <div className="flex items-center justify-between mt-4">
       <div className="flex items-center gap-2">
         <Button
           variant="secondary"
@@ -31,31 +43,25 @@ export function TablePagination({ pagination, onPageChange }: TablePaginationPro
           Previous
         </Button>
 
-        <div className="flex gap-1">
-          {pageNumbers.map((page, index) => {
-            if (page === '...') {
-              return (
-                <span key={`ellipsis-${index}`} className="px-3 py-1 text-gray-500">
-                  ...
-                </span>
-              );
-            }
-
-            return (
-              <button
-                key={page}
-                onClick={() => onPageChange(page as number)}
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                  currentPage === page
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                {page}
-              </button>
-            );
-          })}
-        </div>
+        {pageNumbers.map((page, idx) =>
+          page === '...' ? (
+            <span key={idx} className="px-3 py-1 text-gray-500">
+              ...
+            </span>
+          ) : (
+            <button
+              key={page}
+              onClick={() => onPageChange(page as number)}
+              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                page === currentPage
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {page}
+            </button>
+          )
+        )}
 
         <Button
           variant="secondary"

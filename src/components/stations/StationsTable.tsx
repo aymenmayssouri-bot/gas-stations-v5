@@ -1,135 +1,119 @@
 // src/components/stations/StationsTable.tsx
-// Updated table component for normalized station data
+'use client';
 
-import React from 'react';
 import { StationWithDetails } from '@/types/station';
-import Button from '@/components/ui/Button';
+import { SortConfig } from '@/types/table';
+import TableHeader from './TableHeader';
+import TablePagination from './TablePagination';
 
-interface StationsTableProps {
+export interface StationsTableProps {
   stations: StationWithDetails[];
   onEdit: (station: StationWithDetails) => void;
   onDelete: (station: StationWithDetails) => void;
+
+  // 🔹 New props
+  sortConfig: SortConfig;
+  onSortChange: (config: SortConfig) => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 }
 
-function formatCapacity(capacity: number | null | undefined): string {
-  if (capacity === null || capacity === undefined) return 'N/A';
-  return `${capacity.toLocaleString('fr-FR')} L`;
-}
-
-function formatDate(date: Date | null): string {
-  if (!date) return 'N/A';
-  return date.toLocaleDateString('fr-FR');
-}
-
-export function StationsTable({ stations, onEdit, onDelete }: StationsTableProps) {
+export function StationsTable({
+  stations,
+  onEdit,
+  onDelete,
+  sortConfig,
+  onSortChange,
+  searchQuery,
+  onSearchChange,
+  currentPage,
+  totalPages,
+  onPageChange,
+}: StationsTableProps) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
-      <table className="min-w-full text-sm">
-        <thead className="bg-gray-50">
-          <tr className="text-gray-700">
-            <th className="px-4 py-3 text-left font-medium">Station</th>
-            <th className="px-4 py-3 text-left font-medium">Marque</th>
-            <th className="px-4 py-3 text-left font-medium">Gérant</th>
-            <th className="px-4 py-3 text-left font-medium">Téléphone</th>
-            <th className="px-4 py-3 text-left font-medium">Localisation</th>
-            <th className="px-4 py-3 text-left font-medium">Type</th>
-            <th className="px-4 py-3 text-left font-medium">Propriétaire</th>
-            <th className="px-4 py-3 text-left font-medium">Capacités</th>
-            <th className="px-4 py-3 text-left font-medium">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="bg-white">
-          {stations.map((stationData) => {
-            const gasoilCapacite = stationData.capacites.find(c => c.TypeCarburant === 'Gasoil');
-            const sspCapacite = stationData.capacites.find(c => c.TypeCarburant === 'SSP');
-            
-            const proprietaireText = stationData.proprietaire 
-              ? stationData.proprietaire.base.TypeProprietaire === 'Physique'
-                ? (stationData.proprietaire.details as any).NomProprietaire
-                : (stationData.proprietaire.details as any).NomEntreprise
-              : 'N/A';
+    <div className="space-y-4">
+      {/* 🔎 Search bar */}
+      <div className="flex justify-end">
+        <input
+          type="text"
+          placeholder="Rechercher une station..."
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="border px-3 py-2 rounded-md w-64"
+        />
+      </div>
 
-            return (
-              <tr key={stationData.station.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-3">
-                  <div>
-                    <div className="font-medium text-gray-900">{stationData.station.NomStation}</div>
-                    <div className="text-xs text-gray-500">{stationData.station.Adresse}</div>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div>
-                    <div className="text-gray-900">{stationData.marque.Marque}</div>
-                    <div className="text-xs text-gray-500">{stationData.marque.RaisonSociale}</div>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div>
-                    <div className="text-gray-900">{stationData.gerant.Gerant}</div>
-                    <div className="text-xs text-gray-500">CIN: {stationData.gerant.CINGerant}</div>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-gray-700">{stationData.gerant.Telephone || 'N/A'}</td>
-                <td className="px-4 py-3">
-                  <div>
-                    <div className="text-gray-900">{stationData.commune.Commune}</div>
-                    <div className="text-xs text-gray-500">{stationData.province.Province}</div>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                    stationData.station.Type === 'service' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {stationData.station.Type}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="text-gray-700 text-xs max-w-24 truncate" title={proprietaireText}>
-                    {proprietaireText}
-                  </div>
-                  {stationData.proprietaire && (
-                    <div className="text-xs text-gray-500">
-                      ({stationData.proprietaire.base.TypeProprietaire})
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="space-y-1">
-                    <div className="text-xs">
-                      <span className="text-gray-500">G:</span> {formatCapacity(gasoilCapacite?.CapaciteLitres)}
-                    </div>
-                    <div className="text-xs">
-                      <span className="text-gray-500">SSP:</span> {formatCapacity(sspCapacite?.CapaciteLitres)}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-2 justify-end">
-                    <Button size="sm" variant="secondary" onClick={() => onEdit(stationData)}>
-                      Modifier
-                    </Button>
-                    <Button size="sm" variant="danger" onClick={() => onDelete(stationData)}>
-                      Supprimer
-                    </Button>
-                  </div>
+      {/* 📊 Table */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full border border-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <TableHeader
+                label="Nom"
+                sortKey="NomStation"
+                sortConfig={sortConfig}
+                onSortChange={onSortChange}
+              />
+              <TableHeader
+                label="Commune"
+                sortKey="Commune"
+                sortConfig={sortConfig}
+                onSortChange={onSortChange}
+              />
+              <TableHeader
+                label="Marque"
+                sortKey="Marque"
+                sortConfig={sortConfig}
+                onSortChange={onSortChange}
+              />
+              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {stations.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="text-center py-4 text-gray-500">
+                  Aucune station trouvée.
                 </td>
               </tr>
-            );
-          })}
-          {stations.length === 0 && (
-            <tr>
-              <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                <div className="flex flex-col items-center">
-                  <p className="text-lg font-medium">Aucune station trouvée</p>
-                  <p className="text-sm mt-1">Ajoutez votre première station pour commencer</p>
-                </div>
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            ) : (
+              stations.map((s) => (
+                <tr key={s.station.id} className="border-t hover:bg-gray-50">
+                  <td className="px-4 py-2">{s.station.NomStation}</td>
+                  <td className="px-4 py-2">{s.commune.Commune}</td>
+                  <td className="px-4 py-2">{s.marque.Marque}</td>
+                  <td className="px-4 py-2 space-x-2">
+                    <button
+                      onClick={() => onEdit(s)}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      onClick={() => onDelete(s)}
+                      className="text-red-600 hover:underline"
+                    >
+                      Supprimer
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 📄 Pagination */}
+      <TablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 }

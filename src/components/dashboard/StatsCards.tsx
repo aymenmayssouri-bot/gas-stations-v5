@@ -1,15 +1,9 @@
 // File: src/components/dashboard/StatsCards.tsx
-// This component has been updated to remove price stats and
-// add capacity-related statistics based on the new schema.
+// Stats based on normalized StationWithDetails[]
 
-import React from 'react';
-import  Card  from '@/components/ui/Card';
-import { GasStation } from '@/types/station';
-import { 
-  getUniqueBrands, 
-  getStationsByType, 
-  formatCapacity, 
-} from '@/lib/utils/stationUtils';
+import React, { useMemo } from 'react';
+import Card from '@/components/ui/Card';
+import { StationWithDetails } from '@/types/station';
 
 interface StatsCardProps {
   label: string;
@@ -18,53 +12,46 @@ interface StatsCardProps {
 
 function StatsCard({ label, value }: StatsCardProps) {
   return (
-    <Card className="flex flex-col p-6 items-center text-center">
-      <p className="text-sm font-medium text-gray-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-blue-600">{value}</p>
+    <Card>
+      <div className="text-sm text-gray-500">{label}</div>
+      <div className="text-2xl font-semibold text-gray-900">{value}</div>
     </Card>
   );
 }
 
-interface StatsCardsProps {
-  allStations: GasStation[];
+function formatCapacity(n: number) {
+  return `${n.toLocaleString('fr-FR')} L`;
 }
 
-export function StatsCards({ allStations }: StatsCardsProps) {
-  const totalStations = allStations.length;
-  const uniqueBrands = getUniqueBrands(allStations);
-  const serviceStations = getStationsByType(allStations, 'service');
-  const remplissageStations = getStationsByType(allStations, 'remplissage');
+export function StatsCards({ stations }: { stations: StationWithDetails[] }) {
+  const { total, serviceCount, remplissageCount, totalGasoil, totalSSP } = useMemo(() => {
+    let total = stations.length;
+    let serviceCount = 0;
+    let remplissageCount = 0;
+    let totalGasoil = 0;
+    let totalSSP = 0;
 
-  // Calculate total capacities
-  const totalGasoilCapacity = allStations.reduce((sum, station) => sum + (station['Capacité Gasoil'] || 0), 0);
-  const totalSSPCapacity = allStations.reduce((sum, station) => sum + (station['Capacité SSP'] || 0), 0);
+    for (const s of stations) {
+      if (s.station.Type === 'service') serviceCount++;
+      if (s.station.Type === 'remplissage') remplissageCount++;
+
+      for (const cap of s.capacites) {
+        if (cap.TypeCarburant === 'Gasoil') totalGasoil += cap.CapaciteLitres || 0;
+        if (cap.TypeCarburant === 'SSP') totalSSP += cap.CapaciteLitres || 0;
+      }
+    }
+    return { total, serviceCount, remplissageCount, totalGasoil, totalSSP };
+  }, [stations]);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-      <StatsCard
-        label="Total Stations"
-        value={totalStations}
-      />
-      <StatsCard
-        label="Total Brands"
-        value={uniqueBrands.length}
-      />
-      <StatsCard
-        label="Service Stations"
-        value={serviceStations.length}
-      />
-      <StatsCard
-        label="Remplissage Stations"
-        value={remplissageStations.length}
-      />
-      <StatsCard
-        label="Total Gasoil Capacity"
-        value={formatCapacity(totalGasoilCapacity)}
-      />
-      <StatsCard
-        label="Total SSP Capacity"
-        value={formatCapacity(totalSSPCapacity)}
-      />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <StatsCard label="Total stations" value={total} />
+      <StatsCard label="Stations service" value={serviceCount} />
+      <StatsCard label="Stations remplissage" value={remplissageCount} />
+      <StatsCard label="Capacité Gasoil" value={formatCapacity(totalGasoil)} />
+      <StatsCard label="Capacité SSP" value={formatCapacity(totalSSP)} />
     </div>
   );
 }
+
+export default StatsCards;

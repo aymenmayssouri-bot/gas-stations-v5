@@ -9,7 +9,7 @@ export function StationStats() {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'gasStations'), snapshot => {
+    const unsub = onSnapshot(collection(db, 'stations'), snapshot => {
       setCount(snapshot.size);
       console.log('StationStats: Found', snapshot.size, 'stations');
     });
