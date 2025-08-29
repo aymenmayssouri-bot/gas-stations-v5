@@ -23,16 +23,19 @@ export function stationWithDetailsToFormData(stationData: StationWithDetails): S
     Marque: stationData.marque.Marque,
     RaisonSociale: stationData.marque.RaisonSociale,
     
-    Commune: stationData.commune.Commune,
-    Province: stationData.province.Province,
+     Commune: stationData.commune.NomCommune,   // <-- Changed
+    Province: stationData.province.NomProvince, // <-- Changed
     
-    Gerant: stationData.gerant.Gerant,
+    NomGerant: stationData.gerant.NomGerant,        // <-- Changed
+    PrenomGerant: stationData.gerant.PrenomGerant,  // <-- Changed
     CINGerant: stationData.gerant.CINGerant,
     Telephone: stationData.gerant.Telephone || '',
     
     TypeProprietaire: stationData.proprietaire?.base.TypeProprietaire || 'Physique',
     NomProprietaire: stationData.proprietaire?.base.TypeProprietaire === 'Physique' ? 
       (stationData.proprietaire.details as ProprietairePhysique).NomProprietaire : '',
+    PrenomProprietaire: stationData.proprietaire?.base.TypeProprietaire === 'Physique' ? 
+      (stationData.proprietaire.details as ProprietairePhysique).PrenomProprietaire : '', // <-- Added
     NomEntreprise: stationData.proprietaire?.base.TypeProprietaire === 'Morale' ? 
       (stationData.proprietaire.details as ProprietaireMorale).NomEntreprise : '',
     

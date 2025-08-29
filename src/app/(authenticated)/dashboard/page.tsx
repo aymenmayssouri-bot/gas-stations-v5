@@ -1,4 +1,4 @@
-// src/app/(authenticated)/dashboard/page-normalized.tsx
+// src/app/(authenticated)/dashboard/page.tsx
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';

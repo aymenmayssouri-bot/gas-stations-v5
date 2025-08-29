@@ -112,7 +112,8 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
         </div>
 
         {/* Gérant */}
-        <Input label="Nom du gérant" name="Gerant" value={form.Gerant} onChange={(e) => updateField('Gerant', e.target.value)} />
+        <Input label="Prénom du gérant" name="PrenomGerant" value={form.PrenomGerant} onChange={(e) => updateField('PrenomGerant', e.target.value)} />
+        <Input label="Nom du gérant" name="NomGerant" value={form.NomGerant} onChange={(e) => updateField('NomGerant', e.target.value)} />
         <Input label="CIN du gérant" name="CINGerant" value={form.CINGerant} onChange={(e) => updateField('CINGerant', e.target.value)} />
         <Input label="Téléphone" name="Telephone" value={form.Telephone} onChange={(e) => updateField('Telephone', e.target.value)} />
 
@@ -131,7 +132,10 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
         </div>
 
         {form.TypeProprietaire === 'Physique' ? (
-          <Input label="Nom du propriétaire (physique)" name="NomProprietaire" value={form.NomProprietaire} onChange={(e) => updateField('NomProprietaire', e.target.value)} />
+          <>
+            <Input label="Prénom du propriétaire" name="PrenomProprietaire" value={form.PrenomProprietaire} onChange={(e) => updateField('PrenomProprietaire', e.target.value)} />
+            <Input label="Nom du propriétaire" name="NomProprietaire" value={form.NomProprietaire} onChange={(e) => updateField('NomProprietaire', e.target.value)} />
+          </>
         ) : (
           <Input label="Nom de l'entreprise (morale)" name="NomEntreprise" value={form.NomEntreprise} onChange={(e) => updateField('NomEntreprise', e.target.value)} />
         )}

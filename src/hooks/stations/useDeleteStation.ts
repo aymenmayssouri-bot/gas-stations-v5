@@ -29,23 +29,24 @@ export function useDeleteStation() {
       // Get a reference to the station document
       const stationRef = doc(db, COLLECTIONS.STATIONS, stationId);
       
-      // Delete related autorisations
+      // Delete related autorisations (these belong only to this station)
       const autorisationsSnapshot = await getDocs(
         query(collection(db, COLLECTIONS.AUTORISATIONS), where('StationID', '==', stationId))
       );
-      autorisationsSnapshot.docs.forEach(doc => {
-        batch.delete(doc.ref);
+      autorisationsSnapshot.docs.forEach(d => {
+        batch.delete(d.ref);
       });
 
-      // Delete related capacites
+      // Delete related capacites (these belong only to this station)
       const capacitesSnapshot = await getDocs(
         query(collection(db, COLLECTIONS.CAPACITES_STOCKAGE), where('StationID', '==', stationId))
       );
-      capacitesSnapshot.docs.forEach(doc => {
-        batch.delete(doc.ref);
+      capacitesSnapshot.docs.forEach(d => {
+        batch.delete(d.ref);
       });
 
-      // Delete the station document itself
+      // Delete the station document itself. This removes the link to the Proprietor,
+      // but does not delete the Proprietor itself.
       batch.delete(stationRef);
 
       await batch.commit();
@@ -53,6 +54,7 @@ export function useDeleteStation() {
     } catch (err: any) {
       console.error('Error deleting station:', err);
       setError(`Failed to delete station: ${err.message}`);
+      throw err; // Re-throw the error for the UI to handle
     } finally {
       setLoading(false);
     }

@@ -73,25 +73,34 @@ export function useStations() {
           }
 
           const gerantDoc = await getDoc(doc(db, COLLECTIONS.GERANTS, station.GerantID));
-          const gerant = gerantDoc.exists() ? 
-            { id: gerantDoc.id, ...gerantDoc.data() } as Gerant : null;
-
+          const gerantData = gerantDoc.exists() ? gerantDoc.data() : null;
+          let gerant: Gerant | null = null;
+          if (gerantData) {
+            gerant = {
+              id: gerantDoc.id,
+              ...gerantData,
+              fullName: `${gerantData.PrenomGerant || ''} ${gerantData.NomGerant || ''}`.trim()
+            } as Gerant;
+          }
+          
+          // ... (Proprietaire logic needs similar update)
           let proprietaire: StationWithDetails['proprietaire'] = undefined;
           if (station.ProprietaireID) {
+            // ... (fetch proprietaireDoc as before)
             const proprietaireDoc = await getDoc(doc(db, COLLECTIONS.PROPRIETAIRES, station.ProprietaireID));
             if (proprietaireDoc.exists()) {
               const proprietaireBase = { id: proprietaireDoc.id, ...proprietaireDoc.data() } as Proprietaire;
               
               if (proprietaireBase.TypeProprietaire === 'Physique') {
-                const physiqueSnapshot = await getDocs(
-                  query(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES), 
-                    where('ProprietaireID', '==', station.ProprietaireID))
-                );
+                const physiqueSnapshot = await getDocs(query(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES), where('ProprietaireID', '==', station.ProprietaireID)));
                 if (!physiqueSnapshot.empty) {
-                  const physiqueData = { id: physiqueSnapshot.docs[0].id, ...physiqueSnapshot.docs[0].data() } as ProprietairePhysique;
+                  const physiqueData = { id: physiqueSnapshot.docs[0].id, ...physiqueSnapshot.docs[0].data() };
                   proprietaire = {
                     base: proprietaireBase,
-                    details: physiqueData
+                    details: {
+                      ...physiqueData,
+                      fullName: `${physiqueData.PrenomProprietaire || ''} ${physiqueData.NomProprietaire || ''}`.trim()
+                    }
                   };
                 }
               } else {
@@ -134,11 +143,13 @@ export function useStations() {
               province,
               gerant,
               proprietaire,
-              autorisations,
-              capacites
+              // ... autorisations, capacites
             });
           } else {
-            console.warn(`Skipping station ${station.NomStation} - missing required references`);
+            console.warn(`Skipping station ${station.NomStation} - missing required references. Check ProvinceID, etc.`);
+            // Add logs to see what's missing
+            if (!province) console.error(`Province not found for commune ID: ${commune?.ProvinceID}`);
+            if (!gerant) console.error(`Gerant not found for gerant ID: ${station.GerantID}`);
           }
         } catch (err) {
           console.error(`Error fetching details for station ${station.NomStation}:`, err);

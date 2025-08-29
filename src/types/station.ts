@@ -1,14 +1,13 @@
-// src/types/normalized-station.ts
-// New normalized types for the restructured database
+// src/types/station.ts
 
 export interface Province {
   id?: string;
-  Province: string;
+  NomProvince: string; // <-- Changed from Province
 }
 
 export interface Commune {
   id?: string;
-  Commune: string;
+  NomCommune: string; // <-- Changed from Commune
   ProvinceID: string;
 }
 
@@ -20,9 +19,11 @@ export interface Marque {
 
 export interface Gerant {
   id?: string;
-  Gerant: string;
+  NomGerant: string;     // <-- Changed from Gerant
+  PrenomGerant: string;  // <-- Added
   CINGerant: string;
   Telephone?: string;
+  readonly fullName?: string; // <-- Added for convenience
 }
 
 export interface Proprietaire {
@@ -33,7 +34,9 @@ export interface Proprietaire {
 export interface ProprietairePhysique {
   id?: string;
   ProprietaireID: string;
-  NomProprietaire: string;
+  NomProprietaire: string;    // <-- Changed
+  PrenomProprietaire: string; // <-- Added
+  readonly fullName?: string;   // <-- Added for convenience
 }
 
 export interface ProprietaireMorale {
@@ -94,30 +97,28 @@ export interface StationFormData {
   Longitude: string;
   Type: 'service' | 'remplissage';
   
-  // Marque data
   Marque: string;
   RaisonSociale: string;
   
-  // Location data
-  Commune: string;
-  Province: string;
+  Commune: string;   // Will use NomCommune for display/lookup
+  Province: string;  // Will use NomProvince for display/lookup
   
   // Gerant data
-  Gerant: string;
+  NomGerant: string;      // <-- Changed
+  PrenomGerant: string;   // <-- Added
   CINGerant: string;
   Telephone: string;
   
   // Proprietaire data
   TypeProprietaire: 'Physique' | 'Morale';
-  NomProprietaire: string; // For Physique
-  NomEntreprise: string;   // For Morale
+  NomProprietaire: string;      // <-- Changed
+  PrenomProprietaire: string; // <-- Added
+  NomEntreprise: string;
   
-  // Autorisation data
   TypeAutorisation: 'création' | 'transformation' | 'transfert' | 'changement de marques';
   NumeroAutorisation: string;
   DateAutorisation: string;
   
-  // Capacites data
   CapaciteGasoil: string;
   CapaciteSSP: string;
 }
