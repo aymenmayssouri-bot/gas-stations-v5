@@ -4,9 +4,7 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Province } from '@/types/station';
 
-const COLLECTIONS = {
-  PROVINCES: 'provinces'
-};
+const COLLECTIONS = { PROVINCES: 'provinces' };
 
 export function useProvinces() {
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -14,21 +12,18 @@ export function useProvinces() {
 
   useEffect(() => {
     const fetchProvinces = async () => {
+      setLoading(true);
       try {
-        const snapshot = await getDocs(
-          query(collection(db, COLLECTIONS.PROVINCES), orderBy('Province'))
-        );
-        const provinceList = snapshot.docs.map(doc => 
-          ({ id: doc.id, ...doc.data() } as Province)
-        );
-        setProvinces(provinceList);
-      } catch (error) {
-        console.error('Error fetching provinces:', error);
+        const q = query(collection(db, COLLECTIONS.PROVINCES), orderBy('NomProvince'));
+        const snap = await getDocs(q);
+        setProvinces(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Province[]);
+      } catch (e) {
+        console.error('Error fetching provinces', e);
+        setProvinces([]);
       } finally {
         setLoading(false);
       }
     };
-
     fetchProvinces();
   }, []);
 

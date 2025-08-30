@@ -1,114 +1,55 @@
-// src/components/dashboard/MapPreviewNormalized.tsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+// src/components/dashboard/MapPreview.tsx
+import React, { useMemo, useState } from 'react';
 import { GoogleMap, useLoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 import { StationWithDetails } from '@/types/station';
 
-interface MapPreviewProps { 
-  stations: StationWithDetails[]; 
-}
-
+interface MapPreviewProps { stations: StationWithDetails[] }
 const mapContainerStyle = { width: '100%', height: '480px', borderRadius: '16px' };
 
-function formatCapacity(capacity: number | null): string {
-  if (capacity === null || capacity === undefined) return 'N/A';
-  return `${capacity.toLocaleString('fr-FR')} L`;
+function safeFullName(first?: string, last?: string) {
+  return `${first || ''} ${last || ''}`.trim();
 }
 
-export default function MapPreviewNormalized({ stations }: MapPreviewProps) {
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-  });
-
-  const mapRef = useRef<google.maps.Map | null>(null);
+export default function MapPreview({ stations }: MapPreviewProps) {
+  const { isLoaded } = useLoadScript({ googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '' });
   const [selected, setSelected] = useState<StationWithDetails | null>(null);
 
-  const center = useMemo(() => {
-    // fallback to Casablanca if no coords
-    return { lat: 33.5731, lng: -7.5898 };
-  }, []);
-
-  const onLoad = useCallback((map: google.maps.Map) => { mapRef.current = map; }, []);
-
-  useEffect(() => {
-    if (!mapRef.current || stations.length === 0) return;
-    const bounds = new google.maps.LatLngBounds();
-    let has = false;
-    stations.forEach((s) => {
-      if (s.station.Latitude != null && s.station.Longitude != null) {
-        bounds.extend({ lat: s.station.Latitude, lng: s.station.Longitude });
-        has = true;
-      }
-    });
-    if (has) mapRef.current.fitBounds(bounds);
-  }, [stations]);
+  const center = useMemo(() => ({ lat: 31.6295, lng: -7.9811 }), []); // Morocco center-ish
 
   if (!isLoaded) return null;
 
   return (
-    <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={10} onLoad={onLoad}>
-      {stations.map((s) =>
-        s.station.Latitude != null && s.station.Longitude != null ? (
-          <Marker
-            key={s.station.id}
-            position={{ lat: s.station.Latitude, lng: s.station.Longitude }}
-            onClick={() => setSelected(s)}
-          />
-        ) : null
-      )}
+    <GoogleMap mapContainerStyle={mapContainerStyle} zoom={6} center={center}>
+      {stations.map((s) => (
+        <Marker
+          key={s.station.id}
+          position={{ lat: s.station.Latitude || 0, lng: s.station.Longitude || 0 }}
+          onClick={() => setSelected(s)}
+        />
+      ))}
 
-      {selected && selected.station.Latitude != null && selected.station.Longitude != null && (
+      {selected && (
         <InfoWindow
-          position={{ lat: selected.station.Latitude, lng: selected.station.Longitude }}
+          position={{ lat: selected.station.Latitude || 0, lng: selected.station.Longitude || 0 }}
           onCloseClick={() => setSelected(null)}
         >
-          <div className="text-sm max-w-xs">
-            <div className="space-y-2">
-              <div>
-                <strong>Station:</strong> {selected.station.NomStation}
-              </div>
-              <div>
-                <strong>Marque:</strong> {selected.marque.Marque}
-              </div>
-              <div>
-                <strong>Adresse:</strong> {selected.station.Adresse}
-              </div>
-              <div>
-                <strong>Commune:</strong> {selected.commune.Commune}
-              </div>
-              <div>
-                <strong>Province:</strong> {selected.province.Province}
-              </div>
-              <div>
-                <strong>Gérant:</strong> {selected.gerant.Gerant}
-              </div>
-              <div>
-                <strong>Type:</strong> {selected.station.Type}
-              </div>
-              <div>
-                <strong>Coordonnées:</strong> {selected.station.Latitude?.toFixed(6)}, {selected.station.Longitude?.toFixed(6)}
-              </div>
-              {selected.capacites.length > 0 && (
-                <div>
-                  <strong>Capacités:</strong>
-                  {selected.capacites.map(cap => (
-                    <div key={cap.id} className="ml-2">
-                      {cap.TypeCarburant}: {formatCapacity(cap.CapaciteLitres)}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {selected.gerant.Telephone && (
-                <div>
-                  <strong>Téléphone:</strong> {selected.gerant.Telephone}
-                </div>
-              )}
+          <div style={{ maxWidth: 260 }}>
+            <div className="font-semibold">{selected.station.NomStation}</div>
+            <div className="text-xs text-gray-600">{selected.station.Adresse}</div>
+            <div className="mt-2 space-y-1 text-sm">
+              <div><strong>Commune:</strong> {selected.commune.NomCommune}</div>
+              <div><strong>Province:</strong> {selected.province.NomProvince}</div>
+              <div><strong>Marque:</strong> {selected.marque.Marque}</div>
+              <div><strong>Gérant:</strong> {selected.gerant.fullName || safeFullName(selected.gerant.PrenomGerant, selected.gerant.NomGerant)}</div>
               {selected.proprietaire && (
                 <div>
-                  <strong>Propriétaire:</strong> {
-                    selected.proprietaire.base.TypeProprietaire === 'Physique' 
-                      ? (selected.proprietaire.details as any).NomProprietaire
-                      : (selected.proprietaire.details as any).NomEntreprise
-                  }
+                  <strong>Propriétaire:</strong>{' '}
+                  {selected.proprietaire.base.TypeProprietaire === 'Physique'
+                    ? safeFullName(
+                        (selected.proprietaire.details as any).PrenomProprietaire,
+                        (selected.proprietaire.details as any).NomProprietaire,
+                      )
+                    : (selected.proprietaire.details as any).NomEntreprise}
                 </div>
               )}
             </div>

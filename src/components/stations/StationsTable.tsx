@@ -10,96 +10,49 @@ export interface StationsTableProps {
   stations: StationWithDetails[];
   onEdit: (station: StationWithDetails) => void;
   onDelete: (station: StationWithDetails) => void;
-
-  // 🔹 New props
   sortConfig: SortConfig;
   onSortChange: (config: SortConfig) => void;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
 }
 
-export function StationsTable({
+export default function StationsTable({
   stations,
   onEdit,
   onDelete,
   sortConfig,
   onSortChange,
-  searchQuery,
-  onSearchChange,
   currentPage,
   totalPages,
   onPageChange,
 }: StationsTableProps) {
   return (
-    <div className="space-y-4">
-      {/* 🔎 Search bar */}
-      <div className="flex justify-end">
-        <input
-          type="text"
-          placeholder="Rechercher une station..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="border px-3 py-2 rounded-md w-64"
-        />
-      </div>
-
-      {/* 📊 Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full border border-gray-200">
-          <thead className="bg-gray-50">
+    <div className="space-y-3">
+      <div className="overflow-x-auto border rounded-lg">
+        <table className="min-w-full table-auto text-sm text-gray-900">
+          <thead className="bg-gray-100">
             <tr>
-              <TableHeader
-                label="Nom"
-                sortKey="NomStation"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-              />
-              <TableHeader
-                label="Commune"
-                sortKey="Commune"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-              />
-              <TableHeader
-                label="Marque"
-                sortKey="Marque"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-              />
-              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">
-                Actions
-              </th>
+              <TableHeader label="Station" sortKey="NomStation" sortConfig={sortConfig} onSortChange={onSortChange} />
+              <TableHeader label="Commune" sortKey="NomCommune" sortConfig={sortConfig} onSortChange={onSortChange} />
+              <TableHeader label="Marque" sortKey="Marque" sortConfig={sortConfig} onSortChange={onSortChange} />
+              <th className="px-4 py-2 text-right w-40">Actions</th>
             </tr>
           </thead>
           <tbody>
             {stations.length === 0 ? (
               <tr>
-                <td colSpan={4} className="text-center py-4 text-gray-500">
-                  Aucune station trouvée.
-                </td>
+                <td colSpan={4} className="text-center py-4 text-gray-500">Aucune station trouvée.</td>
               </tr>
             ) : (
               stations.map((s) => (
                 <tr key={s.station.id} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-2">{s.station.NomStation}</td>
-                  <td className="px-4 py-2">{s.commune.Commune}</td>
+                  <td className="px-4 py-2">{s.commune.NomCommune}</td>
                   <td className="px-4 py-2">{s.marque.Marque}</td>
-                  <td className="px-4 py-2 space-x-2">
-                    <button
-                      onClick={() => onEdit(s)}
-                      className="text-blue-600 hover:underline"
-                    >
-                      Modifier
-                    </button>
-                    <button
-                      onClick={() => onDelete(s)}
-                      className="text-red-600 hover:underline"
-                    >
-                      Supprimer
-                    </button>
+                  <td className="px-4 py-2 space-x-2 text-right">
+                    <button onClick={() => onEdit(s)} className="text-blue-600 hover:underline">Modifier</button>
+                    <button onClick={() => onDelete(s)} className="text-red-600 hover:underline">Supprimer</button>
                   </td>
                 </tr>
               ))
@@ -108,12 +61,7 @@ export function StationsTable({
         </table>
       </div>
 
-      {/* 📄 Pagination */}
-      <TablePagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={onPageChange}
-      />
+      <TablePagination currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} />
     </div>
   );
 }
