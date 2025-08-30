@@ -33,12 +33,14 @@ export default function DashboardPage() {
   const { stations, loading, error } = useStations();
   const [onlyWithCoords, setOnlyWithCoords] = useState(true);
 
+  // Filter stations with coordinates for map display
   const filtered: StationWithDetails[] = useMemo(() => {
     return stations.filter((s) =>
       onlyWithCoords ? (s.station.Latitude || 0) !== 0 && (s.station.Longitude || 0) !== 0 : true
     );
   }, [stations, onlyWithCoords]);
 
+  // Stats by province for chart
   const byProvince = useMemo(() => {
     const map = new Map<string, number>();
     stations.forEach((s) => {
@@ -48,6 +50,19 @@ export default function DashboardPage() {
     return Array.from(map.entries()).map(([name, count]) => ({ name, count }));
   }, [stations]);
 
+  // Stats by marque for chart
+  const byMarque = useMemo(() => {
+    const map = new Map<string, number>();
+    stations.forEach((s) => {
+      const name = s.marque.Marque?.trim() || '—';
+      map.set(name, (map.get(name) || 0) + 1);
+    });
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count); // Sort by count descending
+  }, [stations]);
+
+  // Calculate fuel capacities
   const capacities = useMemo(() => {
     let gasoil = 0, ssp = 0;
     stations.forEach((s) => {
@@ -57,6 +72,16 @@ export default function DashboardPage() {
       });
     });
     return { gasoil, ssp };
+  }, [stations]);
+
+  // Station types count
+  const typeStats = useMemo(() => {
+    let service = 0, remplissage = 0;
+    stations.forEach((s) => {
+      if (s.station.Type === 'service') service++;
+      if (s.station.Type === 'remplissage') remplissage++;
+    });
+    return { service, remplissage };
   }, [stations]);
 
   if (loading) {
@@ -89,8 +114,6 @@ export default function DashboardPage() {
     );
   }
 
-  
-
   return (
     <div className="p-6 space-y-6 text-gray-900">
       <div>
@@ -98,49 +121,85 @@ export default function DashboardPage() {
         <p className="text-sm text-gray-600">Vue d'ensemble avec structure normalisée.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Main Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card title="Total Stations" value={stations.length} />
+        <Card title="Stations Service" value={typeStats.service} />
+        <Card title="Stations Remplissage" value={typeStats.remplissage} />
+        <Card title="Avec Coordonnées" value={filtered.length} />
+      </div>
+
+      {/* Capacity Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card title="Capacité Gasoil (L)" value={formatCapacity(capacities.gasoil)} />
         <Card title="Capacité SSP (L)" value={formatCapacity(capacities.ssp)} />
       </div>
 
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card title="Répartition par province">
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={byProvince}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
+                <XAxis 
+                  dataKey="name" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  interval={0}
+                />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="count" />
+                <Bar dataKey="count" fill="#3B82F6" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
-        <Card title="Carte (aperçu)">
-          <div className="mb-2 flex items-center gap-2">
-            <input
-              id="coordsOnly"
-              type="checkbox"
-              checked={onlyWithCoords}
-              onChange={(e) => setOnlyWithCoords(e.target.checked)}
-            />
-            <label htmlFor="coordsOnly">Afficher uniquement les stations avec coordonnées</label>
+        <Card title="Répartition par marque">
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={byMarque}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="name" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  interval={0}
+                />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill="#10B981" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
-            <MapPreview stations={filtered} />
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-500 bg-gray-100 rounded">
-              <div className="text-center">
-                <p>Google Maps API key not configured</p>
-                <p className="text-sm mt-1">Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to your .env.local</p>
-              </div>
-            </div>
-          )}
         </Card>
       </div>
+
+      {/* Map */}
+      <Card title="Carte (aperçu)">
+        <div className="mb-2 flex items-center gap-2">
+          <input
+            id="coordsOnly"
+            type="checkbox"
+            checked={onlyWithCoords}
+            onChange={(e) => setOnlyWithCoords(e.target.checked)}
+          />
+          <label htmlFor="coordsOnly">Afficher uniquement les stations avec coordonnées</label>
+        </div>
+        {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
+          <MapPreview stations={filtered} />
+        ) : (
+          <div className="h-full flex items-center justify-center text-gray-500 bg-gray-100 rounded">
+            <div className="text-center">
+              <p>Google Maps API key not configured</p>
+              <p className="text-sm mt-1">Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to your .env.local</p>
+            </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

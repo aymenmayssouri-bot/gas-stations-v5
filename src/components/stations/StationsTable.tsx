@@ -5,7 +5,7 @@ import React from 'react';
 import { StationWithDetails } from '@/types/station';
 import { SortConfig } from '@/types/table';
 import TableHeader from './TableHeader';
-import  TablePagination  from './TablePagination';
+import TablePagination from './TablePagination';
 
 export interface StationsTableProps {
   stations: StationWithDetails[];
@@ -19,6 +19,10 @@ export interface StationsTableProps {
   pageSize?: number;
 }
 
+function safeFullName(first?: string, last?: string) {
+  return `${first || ''} ${last || ''}`.trim() || '-';
+}
+
 export default function StationsTable({
   stations,
   onEdit,
@@ -30,19 +34,25 @@ export default function StationsTable({
   onPageChange,
   pageSize = 10,
 }: StationsTableProps) {
-  // client-side slice (if you use server-side paging replace this logic)
+  // Client-side slice for pagination
   const start = (currentPage - 1) * pageSize;
   const visible = stations.slice(start, start + pageSize);
 
   return (
-    <div className="w-full">
-      <div className="overflow-x-auto border rounded">
+    <div className="w-full bg-white rounded-lg shadow-sm border">
+      <div className="overflow-x-auto">
         <table className="min-w-full">
-          <thead className="bg-gray-100">
+          <thead className="bg-gray-50 border-b text-gray-900">
             <tr>
               <TableHeader
                 label="Station"
                 sortKey="NomStation"
+                sortConfig={sortConfig}
+                onSortChange={onSortChange}
+              />
+              <TableHeader
+                label="Adresse"
+                sortKey="Adresse"
                 sortConfig={sortConfig}
                 onSortChange={onSortChange}
               />
@@ -53,33 +63,85 @@ export default function StationsTable({
                 onSortChange={onSortChange}
               />
               <TableHeader
+                label="Province"
+                sortKey="Province"
+                sortConfig={sortConfig}
+                onSortChange={onSortChange}
+              />
+              <TableHeader
                 label="Marque"
                 sortKey="Marque"
                 sortConfig={sortConfig}
                 onSortChange={onSortChange}
               />
-              <th className="px-4 py-2 text-left">Actions</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
+                Gérant
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
 
-          <tbody>
+          <tbody className="divide-y divide-gray-200"> 
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500">
-                  No stations found.
+                <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">
+                  Aucune station trouvée.
                 </td>
               </tr>
             ) : (
               visible.map((s) => (
-                <tr key={s.station.StationID ?? s.station.id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2">{s.station.NomStation}</td>
-                  <td className="px-4 py-2">{s.commune?.NomCommune ?? '-'}</td>
-                  <td className="px-4 py-2">{s.marque?.Marque ?? '-'}</td>
-                  <td className="px-4 py-2 space-x-2 text-right">
-                    <button onClick={() => onEdit(s)} className="text-blue-600 hover:underline">
+                <tr key={s.station.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900">{s.station.NomStation}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="text-sm text-gray-900">{s.station.Adresse || '-'}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="text-sm text-gray-900">{s.commune?.NomCommune || '-'}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="text-sm text-gray-900">{s.province?.NomProvince || '-'}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="text-sm text-gray-900">{s.marque?.Marque || '-'}</div>
+                    {s.marque?.RaisonSociale && (
+                      <div className="text-xs text-gray-500">{s.marque.RaisonSociale}</div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="text-sm text-gray-900">
+                      {safeFullName(s.gerant?.PrenomGerant, s.gerant?.NomGerant)}
+                    </div>
+                    {s.gerant?.CINGerant && (
+                      <div className="text-xs text-gray-500">CIN: {s.gerant.CINGerant}</div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      s.station.Type === 'service' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {s.station.Type}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right space-x-2">
+                    <button 
+                      onClick={() => onEdit(s)} 
+                      className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                    >
                       Modifier
                     </button>
-                    <button onClick={() => onDelete(s)} className="text-red-600 hover:underline">
+                    <button 
+                      onClick={() => onDelete(s)} 
+                      className="text-red-600 hover:text-red-900 text-sm font-medium"
+                    >
                       Supprimer
                     </button>
                   </td>
@@ -90,9 +152,16 @@ export default function StationsTable({
         </table>
       </div>
 
-      <div className="mt-4">
-        <TablePagination currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} />
-      </div>
+      {/* Pagination */}
+      {visible.length > 0 && (
+        <div className="px-4 py-3 border-t border-gray-200">
+          <TablePagination 
+            currentPage={currentPage} 
+            totalPages={totalPages} 
+            onPageChange={onPageChange} 
+          />
+        </div>
+      )}
     </div>
   );
 }

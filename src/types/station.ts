@@ -90,3 +90,42 @@ export type StationWithDetails = {
   autorisations: Autorisation[];
   capacites: CapaciteStockage[];
 };
+
+// Form data type for creating/editing stations
+export type StationFormData = {
+  id?: string;
+  NomStation: string;
+  Adresse: string;
+  Latitude: string;
+  Longitude: string;
+  Type: 'remplissage' | 'service';
+  
+  // Marque
+  Marque: string;
+  RaisonSociale: string;
+  
+  // Location
+  Province: string;
+  Commune: string;
+  
+  // Manager (note: using separate fields instead of concatenated)
+  PrenomGerant: string;
+  NomGerant: string;
+  CINGerant: string;
+  Telephone: string;
+  
+  // Owner
+  TypeProprietaire: 'Physique' | 'Morale';
+  PrenomProprietaire: string;
+  NomProprietaire: string;
+  NomEntreprise: string;
+  
+  // Authorization
+  TypeAutorisation: 'création' | 'transformation' | 'transfert' | 'changement de marques';
+  NumeroAutorisation: string;
+  DateAutorisation: string;
+  
+  // Capacities
+  CapaciteGasoil: string;
+  CapaciteSSP: string;
+};
