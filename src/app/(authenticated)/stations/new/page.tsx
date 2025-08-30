@@ -1,7 +1,8 @@
+// src/app/(authenticated)/stations/new/page.tsx
 'use client';
 
-import { StationForm } from '@/components/stations/StationForm';
 import Card from '@/components/ui/Card';
+import { StationForm } from '@/components/stations/StationForm';
 
 export default function NewStationPage() {
   return (
@@ -12,7 +13,6 @@ export default function NewStationPage() {
       </div>
 
       <Card>
-        {/* StationForm should internally use useStationForm(mode='create') */}
         <StationForm mode="create" />
       </Card>
     </div>

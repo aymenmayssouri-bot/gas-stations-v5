@@ -1,3 +1,4 @@
+// src/app/(authenticated)/stations/[id]/page.tsx
 'use client';
 
 import { useMemo } from 'react';
@@ -13,38 +14,21 @@ export default function EditStationPage() {
   const id = params?.id;
   const { stations, loading, error } = useStations();
 
-  const selected = useMemo(() => stations.find(s => s.station.id === id), [stations, id]);
+  const selected = useMemo(
+    () => stations.find((s) => (s.station.StationID ?? s.station.id) === id),
+    [stations, id]
+  );
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <ErrorMessage error={error} />
-      </div>
-    );
-  }
-
-  if (!selected) {
-    return (
-      <div className="p-6">
-        <ErrorMessage error="Station introuvable." />
-      </div>
-    );
-  }
+  if (loading) return <LoadingSpinner />;
+  if (error) return <ErrorMessage message={error} />;
+  if (!selected) return <ErrorMessage message="Station not found" />;
 
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Modifier la station</h1>
         <p className="text-sm text-gray-600">
-          {selected.station.NomStation} — {selected.marque.Marque}
+          {selected.station.NomStation} — {selected.marque?.Marque ?? '-'}
         </p>
       </div>
 

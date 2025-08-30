@@ -14,7 +14,7 @@ export default function TablePagination({
   const canNext = currentPage < totalPages;
 
   return (
-    <div className="flex items-center justify-end gap-2">
+    <div className="flex items-center justify-center gap-3">
       <button
         className="px-3 py-1 border rounded disabled:opacity-50"
         onClick={() => onPageChange(currentPage - 1)}
