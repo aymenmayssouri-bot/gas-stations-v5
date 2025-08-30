@@ -1,50 +1,66 @@
 // src/utils/stationFormUtils.ts
-
-import {
-  StationWithDetails,
-  StationFormData,
-  ProprietairePhysique,
-  ProprietaireMorale,
-} from '@/types/station';
+import { StationWithDetails, StationFormData } from '@/types/station';
 
 export function stationWithDetailsToFormData(stationData: StationWithDetails): StationFormData {
-  const gasoilCapacite = stationData.capacites.find(c => c.TypeCarburant === 'Gasoil');
-  const sspCapacite = stationData.capacites.find(c => c.TypeCarburant === 'SSP');
-  const mainAutorisation = stationData.autorisations[0]; // Take first autorisation
+  const { station, marque, commune, province, gerant, proprietaire, autorisations, capacites } = stationData;
+  
+  // Get the first authorization (if any)
+  const firstAuth = autorisations?.[0];
+  
+  // Get capacities by type
+  const gasoilCapacity = capacites?.find(c => c.TypeCarburant === 'Gasoil');
+  const sspCapacity = capacites?.find(c => c.TypeCarburant === 'SSP');
+  
+  // Format date for HTML input
+  const formatDateForInput = (date: Date | null): string => {
+    if (!date) return '';
+    if (date instanceof Date) {
+      return date.toISOString().split('T')[0];
+    }
+    return '';
+  };
 
   return {
-    id: stationData.station.id,
-    NomStation: stationData.station.NomStation,
-    Adresse: stationData.station.Adresse,
-    Latitude: stationData.station.Latitude?.toString() || '',
-    Longitude: stationData.station.Longitude?.toString() || '',
-    Type: stationData.station.Type,
+    id: station.id,
+    NomStation: station.NomStation || '',
+    Adresse: station.Adresse || '',
+    Latitude: station.Latitude ? station.Latitude.toString() : '',
+    Longitude: station.Longitude ? station.Longitude.toString() : '',
+    Type: station.Type || 'service',
     
-    Marque: stationData.marque.Marque,
-    RaisonSociale: stationData.marque.RaisonSociale,
+    // Marque
+    Marque: marque?.Marque || '',
+    RaisonSociale: marque?.RaisonSociale || '',
     
-     Commune: stationData.commune.NomCommune,   // <-- Changed
-    Province: stationData.province.NomProvince, // <-- Changed
+    // Location
+    Province: province?.NomProvince || province?.Province || '',
+    Commune: commune?.NomCommune || commune?.Commune || '',
     
-    NomGerant: stationData.gerant.NomGerant,        // <-- Changed
-    PrenomGerant: stationData.gerant.PrenomGerant,  // <-- Changed
-    CINGerant: stationData.gerant.CINGerant,
-    Telephone: stationData.gerant.Telephone || '',
+    // Manager - FIX: Use the correct field names
+    PrenomGerant: gerant?.PrenomGerant || '',
+    NomGerant: gerant?.NomGerant || '',
+    CINGerant: gerant?.CINGerant || '',
+    Telephone: gerant?.Telephone || '',
     
-    TypeProprietaire: stationData.proprietaire?.base.TypeProprietaire || 'Physique',
-    NomProprietaire: stationData.proprietaire?.base.TypeProprietaire === 'Physique' ? 
-      (stationData.proprietaire.details as ProprietairePhysique).NomProprietaire : '',
-    PrenomProprietaire: stationData.proprietaire?.base.TypeProprietaire === 'Physique' ? 
-      (stationData.proprietaire.details as ProprietairePhysique).PrenomProprietaire : '', // <-- Added
-    NomEntreprise: stationData.proprietaire?.base.TypeProprietaire === 'Morale' ? 
-      (stationData.proprietaire.details as ProprietaireMorale).NomEntreprise : '',
+    // Owner
+    TypeProprietaire: proprietaire?.base?.TypeProprietaire || 'Physique',
+    PrenomProprietaire: proprietaire?.base?.TypeProprietaire === 'Physique' 
+      ? (proprietaire.details as any)?.PrenomProprietaire || ''
+      : '',
+    NomProprietaire: proprietaire?.base?.TypeProprietaire === 'Physique' 
+      ? (proprietaire.details as any)?.NomProprietaire || ''
+      : '',
+    NomEntreprise: proprietaire?.base?.TypeProprietaire === 'Morale' 
+      ? (proprietaire.details as any)?.NomEntreprise || ''
+      : '',
     
-    TypeAutorisation: mainAutorisation?.TypeAutorisation || 'création',
-    NumeroAutorisation: mainAutorisation?.NumeroAutorisation || '',
-    DateAutorisation: mainAutorisation?.DateAutorisation ? 
-      mainAutorisation.DateAutorisation.toISOString().slice(0, 10) : '',
+    // Authorization
+    TypeAutorisation: firstAuth?.TypeAutorisation || 'création',
+    NumeroAutorisation: firstAuth?.NumeroAutorisation || '',
+    DateAutorisation: formatDateForInput(firstAuth?.DateAutorisation || null),
     
-    CapaciteGasoil: gasoilCapacite?.CapaciteLitres.toString() || '',
-    CapaciteSSP: sspCapacite?.CapaciteLitres.toString() || ''
+    // Capacities
+    CapaciteGasoil: gasoilCapacity?.CapaciteLitres?.toString() || '',
+    CapaciteSSP: sspCapacity?.CapaciteLitres?.toString() || '',
   };
 }

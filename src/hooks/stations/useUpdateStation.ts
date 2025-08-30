@@ -9,7 +9,6 @@ import {
   doc,
   writeBatch,
   Timestamp,
-  updateDoc,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import {
@@ -29,7 +28,7 @@ import {
 const COLLECTIONS = {
   STATIONS: 'stations',
   PROVINCES: 'provinces',
-  COMMUNES: 'communes',
+  COMMUNES: 'Communes', // Note: capital C to match existing data
   MARQUES: 'marques',
   GERANTS: 'gerants',
   PROPRIETAIRES: 'proprietaires',
@@ -57,9 +56,15 @@ export function useUpdateStation() {
       );
       if (!existingMarqueSnapshot.empty) {
         marqueId = existingMarqueSnapshot.docs[0].id;
+        // Update RaisonSociale if provided
+        if (formData.RaisonSociale.trim()) {
+          batch.update(existingMarqueSnapshot.docs[0].ref, {
+            RaisonSociale: formData.RaisonSociale.trim()
+          });
+        }
       } else {
         const marqueRef = doc(collection(db, COLLECTIONS.MARQUES));
-        const marque: Marque = {
+        const marque: Omit<Marque, 'id'> = {
           Marque: formData.Marque.trim(),
           RaisonSociale: formData.RaisonSociale.trim(),
         };
@@ -76,7 +81,10 @@ export function useUpdateStation() {
         provinceId = existingProvinceSnapshot.docs[0].id;
       } else {
         const provinceRef = doc(collection(db, COLLECTIONS.PROVINCES));
-        const province: Province = { Province: formData.Province.trim() };
+        const province: Omit<Province, 'id'> = { 
+          Province: formData.Province.trim(),
+          NomProvince: formData.Province.trim()
+        };
         batch.set(provinceRef, province);
         provinceId = provinceRef.id;
       }
@@ -94,29 +102,36 @@ export function useUpdateStation() {
         communeId = existingCommuneSnapshot.docs[0].id;
       } else {
         const communeRef = doc(collection(db, COLLECTIONS.COMMUNES));
-        const commune: Commune = {
+        const commune: Omit<Commune, 'id'> = {
           Commune: formData.Commune.trim(),
+          NomCommune: formData.Commune.trim(),
           ProvinceID: provinceId,
         };
         batch.set(communeRef, commune);
         communeId = communeRef.id;
       }
 
-      // 4. Find or create Gerant
+      // 4. Find or create Gerant - FIX: Use the correct field names
       let gerantId: string;
       const existingGerantSnapshot = await getDocs(
         query(
           collection(db, COLLECTIONS.GERANTS),
-          where('Gerant', '==', formData.Gerant.trim()),
           where('CINGerant', '==', formData.CINGerant.trim())
         )
       );
       if (!existingGerantSnapshot.empty) {
         gerantId = existingGerantSnapshot.docs[0].id;
+        // Update gerant details
+        batch.update(existingGerantSnapshot.docs[0].ref, {
+          PrenomGerant: formData.PrenomGerant.trim(),
+          NomGerant: formData.NomGerant.trim(),
+          Telephone: formData.Telephone.trim() || undefined,
+        });
       } else {
         const gerantRef = doc(collection(db, COLLECTIONS.GERANTS));
-        const gerant: Gerant = {
-          Gerant: formData.Gerant.trim(),
+        const gerant: Omit<Gerant, 'id'> = {
+          PrenomGerant: formData.PrenomGerant.trim(),
+          NomGerant: formData.NomGerant.trim(),
           CINGerant: formData.CINGerant.trim(),
           Telephone: formData.Telephone.trim() || undefined,
         };
@@ -128,21 +143,20 @@ export function useUpdateStation() {
       const updatedStationData: Partial<Station> = {
         NomStation: formData.NomStation.trim(),
         Adresse: formData.Adresse.trim(),
-        Latitude: formData.Latitude ? parseFloat(formData.Latitude) : null,
-        Longitude: formData.Longitude ? parseFloat(formData.Longitude) : null,
+        Latitude: formData.Latitude ? parseFloat(formData.Latitude) : 0,
+        Longitude: formData.Longitude ? parseFloat(formData.Longitude) : 0,
         Type: formData.Type,
         MarqueID: marqueId,
         CommuneID: communeId,
         GerantID: gerantId,
-        // ProprietaireID is handled separately below
       };
       batch.update(stationRef, updatedStationData);
 
-      // 6. Handle Proprietaire Update
+      // 6. Handle Proprietaire Update (similar to your existing logic)
       const oldStationDoc = await getDoc(stationRef);
       const oldProprietaireID = oldStationDoc.data()?.ProprietaireID;
 
-      // Delete old proprietaire details if type changes or if it is removed
+      // Delete old proprietaire details if type changes
       if (oldProprietaireID) {
         const oldProprietaireDoc = await getDoc(doc(db, COLLECTIONS.PROPRIETAIRES, oldProprietaireID));
         if (oldProprietaireDoc.exists()) {
@@ -165,40 +179,49 @@ export function useUpdateStation() {
       const proprietaireName = formData.TypeProprietaire === 'Physique' ? formData.NomProprietaire.trim() : formData.NomEntreprise.trim();
       
       if (proprietaireName) {
-        // If the type is the same, just update the sub-document
         if (oldProprietaireID && oldStationDoc.data()?.TypeProprietaire === formData.TypeProprietaire) {
-            if (formData.TypeProprietaire === 'Physique') {
-                const physiqueSnapshot = await getDocs(query(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES), where('ProprietaireID', '==', oldProprietaireID)));
-                if (!physiqueSnapshot.empty) {
-                    batch.update(physiqueSnapshot.docs[0].ref, { NomProprietaire: formData.NomProprietaire.trim() });
-                }
-            } else {
-                const moraleSnapshot = await getDocs(query(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES), where('ProprietaireID', '==', oldProprietaireID)));
-                if (!moraleSnapshot.empty) {
-                    batch.update(moraleSnapshot.docs[0].ref, { NomEntreprise: formData.NomEntreprise.trim() });
-                }
+          if (formData.TypeProprietaire === 'Physique') {
+            const physiqueSnapshot = await getDocs(query(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES), where('ProprietaireID', '==', oldProprietaireID)));
+            if (!physiqueSnapshot.empty) {
+              batch.update(physiqueSnapshot.docs[0].ref, { 
+                NomProprietaire: formData.NomProprietaire.trim(),
+                PrenomProprietaire: formData.PrenomProprietaire.trim()
+              });
             }
-        } else { // Create a new proprietaire
-            const proprietaireRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES));
-            const proprietaire: Proprietaire = { TypeProprietaire: formData.TypeProprietaire };
-            batch.set(proprietaireRef, proprietaire);
-            newProprietaireId = proprietaireRef.id;
+          } else {
+            const moraleSnapshot = await getDocs(query(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES), where('ProprietaireID', '==', oldProprietaireID)));
+            if (!moraleSnapshot.empty) {
+              batch.update(moraleSnapshot.docs[0].ref, { NomEntreprise: formData.NomEntreprise.trim() });
+            }
+          }
+        } else {
+          const proprietaireRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES));
+          const proprietaire: Omit<Proprietaire, 'id'> = { TypeProprietaire: formData.TypeProprietaire };
+          batch.set(proprietaireRef, proprietaire);
+          newProprietaireId = proprietaireRef.id;
 
-            if (formData.TypeProprietaire === 'Physique') {
-                const physiqueRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES));
-                const physique: ProprietairePhysique = { ProprietaireID: newProprietaireId, NomProprietaire: formData.NomProprietaire.trim() };
-                batch.set(physiqueRef, physique);
-            } else {
-                const moraleRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES));
-                const morale: ProprietaireMorale = { ProprietaireID: newProprietaireId, NomEntreprise: formData.NomEntreprise.trim() };
-                batch.set(moraleRef, morale);
-            }
+          if (formData.TypeProprietaire === 'Physique') {
+            const physiqueRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES));
+            const physique: Omit<ProprietairePhysique, 'id'> = { 
+              ProprietaireID: newProprietaireId, 
+              NomProprietaire: formData.NomProprietaire.trim(),
+              PrenomProprietaire: formData.PrenomProprietaire.trim()
+            };
+            batch.set(physiqueRef, physique);
+          } else {
+            const moraleRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES));
+            const morale: Omit<ProprietaireMorale, 'id'> = { 
+              ProprietaireID: newProprietaireId, 
+              NomEntreprise: formData.NomEntreprise.trim() 
+            };
+            batch.set(moraleRef, morale);
+          }
         }
       }
       
       batch.update(stationRef, { ProprietaireID: newProprietaireId });
 
-      // 7. Delete and re-create Autorisations for simplicity
+      // 7. Delete and re-create Autorisations
       const oldAutorisationsSnapshot = await getDocs(
         query(collection(db, COLLECTIONS.AUTORISATIONS), where('StationID', '==', stationId))
       );
@@ -206,7 +229,7 @@ export function useUpdateStation() {
 
       if (formData.NumeroAutorisation.trim()) {
         const autorisationRef = doc(collection(db, COLLECTIONS.AUTORISATIONS));
-        const autorisation: Autorisation = {
+        const autorisation: Omit<Autorisation, 'id'> = {
           StationID: stationId,
           TypeAutorisation: formData.TypeAutorisation,
           NumeroAutorisation: formData.NumeroAutorisation.trim(),
@@ -216,7 +239,7 @@ export function useUpdateStation() {
         batch.set(autorisationRef, autorisation);
       }
 
-      // 8. Delete and re-create Capacites for simplicity
+      // 8. Delete and re-create Capacites
       const oldCapacitesSnapshot = await getDocs(
         query(collection(db, COLLECTIONS.CAPACITES_STOCKAGE), where('StationID', '==', stationId))
       );
@@ -224,7 +247,7 @@ export function useUpdateStation() {
 
       if (formData.CapaciteGasoil.trim()) {
         const capaciteRef = doc(collection(db, COLLECTIONS.CAPACITES_STOCKAGE));
-        const capacite: CapaciteStockage = {
+        const capacite: Omit<CapaciteStockage, 'id'> = {
           StationID: stationId,
           TypeCarburant: 'Gasoil',
           CapaciteLitres: parseFloat(formData.CapaciteGasoil),
@@ -233,7 +256,7 @@ export function useUpdateStation() {
       }
       if (formData.CapaciteSSP.trim()) {
         const capaciteRef = doc(collection(db, COLLECTIONS.CAPACITES_STOCKAGE));
-        const capacite: CapaciteStockage = {
+        const capacite: Omit<CapaciteStockage, 'id'> = {
           StationID: stationId,
           TypeCarburant: 'SSP',
           CapaciteLitres: parseFloat(formData.CapaciteSSP),
@@ -241,12 +264,12 @@ export function useUpdateStation() {
         batch.set(capaciteRef, capacite);
       }
 
-      // Commit all changes
       await batch.commit();
 
     } catch (err: any) {
       console.error('Error updating station:', err);
       setError(`Failed to update station: ${err.message}`);
+      throw err;
     } finally {
       setLoading(false);
     }

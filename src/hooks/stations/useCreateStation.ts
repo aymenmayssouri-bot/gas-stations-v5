@@ -27,7 +27,7 @@ import {
 const COLLECTIONS = {
   STATIONS: 'stations',
   PROVINCES: 'provinces',
-  COMMUNES: 'communes',
+  COMMUNES: 'Communes', // Note: capital C to match your existing data
   MARQUES: 'marques',
   GERANTS: 'gerants',
   PROPRIETAIRES: 'proprietaires',
@@ -55,9 +55,15 @@ export function useCreateStation() {
 
       if (!existingMarqueSnapshot.empty) {
         marqueId = existingMarqueSnapshot.docs[0].id;
+        // Update RaisonSociale if it's different
+        if (formData.RaisonSociale.trim()) {
+          batch.update(existingMarqueSnapshot.docs[0].ref, {
+            RaisonSociale: formData.RaisonSociale.trim()
+          });
+        }
       } else {
         const marqueRef = doc(collection(db, COLLECTIONS.MARQUES));
-        const marque: Marque = {
+        const marque: Omit<Marque, 'id'> = {
           Marque: formData.Marque.trim(),
           RaisonSociale: formData.RaisonSociale.trim(),
         };
@@ -75,7 +81,10 @@ export function useCreateStation() {
         provinceId = existingProvinceSnapshot.docs[0].id;
       } else {
         const provinceRef = doc(collection(db, COLLECTIONS.PROVINCES));
-        const province: Province = { Province: formData.Province.trim() };
+        const province: Omit<Province, 'id'> = { 
+          Province: formData.Province.trim(),
+          NomProvince: formData.Province.trim() // Add this field to match your data structure
+        };
         batch.set(provinceRef, province);
         provinceId = provinceRef.id;
       }
@@ -94,30 +103,39 @@ export function useCreateStation() {
         communeId = existingCommuneSnapshot.docs[0].id;
       } else {
         const communeRef = doc(collection(db, COLLECTIONS.COMMUNES));
-        const commune: Commune = {
+        const commune: Omit<Commune, 'id'> = {
           Commune: formData.Commune.trim(),
+          NomCommune: formData.Commune.trim(), // Add this field to match your data structure
           ProvinceID: provinceId,
         };
         batch.set(communeRef, commune);
         communeId = communeRef.id;
       }
 
-      // 4. Create or find Gerant
+      // 4. Create or find Gerant - FIX: Use the correct field names
       let gerantId: string;
+      const fullGerantName = `${formData.PrenomGerant.trim()} ${formData.NomGerant.trim()}`.trim();
+      
       const existingGerantSnapshot = await getDocs(
         query(
           collection(db, COLLECTIONS.GERANTS),
-          where('Gerant', '==', formData.Gerant.trim()),
           where('CINGerant', '==', formData.CINGerant.trim())
         )
       );
 
       if (!existingGerantSnapshot.empty) {
         gerantId = existingGerantSnapshot.docs[0].id;
+        // Update gerant info if needed
+        batch.update(existingGerantSnapshot.docs[0].ref, {
+          PrenomGerant: formData.PrenomGerant.trim(),
+          NomGerant: formData.NomGerant.trim(),
+          Telephone: formData.Telephone.trim() || undefined,
+        });
       } else {
         const gerantRef = doc(collection(db, COLLECTIONS.GERANTS));
-        const gerant: Gerant = {
-          Gerant: formData.Gerant.trim(),
+        const gerant: Omit<Gerant, 'id'> = {
+          PrenomGerant: formData.PrenomGerant.trim(),
+          NomGerant: formData.NomGerant.trim(),
           CINGerant: formData.CINGerant.trim(),
           Telephone: formData.Telephone.trim() || undefined,
         };
@@ -127,24 +145,29 @@ export function useCreateStation() {
 
       // 5. Create Proprietaire if provided
       let proprietaireId: string | undefined;
-      const proprietaireName = formData.TypeProprietaire === 'Physique' ? formData.NomProprietaire.trim() : formData.NomEntreprise.trim();
+      const proprietaireName = formData.TypeProprietaire === 'Physique' 
+        ? formData.NomProprietaire.trim() 
+        : formData.NomEntreprise.trim();
 
       if (proprietaireName) {
         const proprietaireRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES));
-        const proprietaire: Proprietaire = { TypeProprietaire: formData.TypeProprietaire };
+        const proprietaire: Omit<Proprietaire, 'id'> = { 
+          TypeProprietaire: formData.TypeProprietaire 
+        };
         batch.set(proprietaireRef, proprietaire);
         proprietaireId = proprietaireRef.id;
 
         if (formData.TypeProprietaire === 'Physique') {
           const physiqueRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES));
-          const physique: ProprietairePhysique = {
+          const physique: Omit<ProprietairePhysique, 'id'> = {
             ProprietaireID: proprietaireId,
             NomProprietaire: formData.NomProprietaire.trim(),
+            PrenomProprietaire: formData.PrenomProprietaire.trim(),
           };
           batch.set(physiqueRef, physique);
         } else {
           const moraleRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES));
-          const morale: ProprietaireMorale = {
+          const morale: Omit<ProprietaireMorale, 'id'> = {
             ProprietaireID: proprietaireId,
             NomEntreprise: formData.NomEntreprise.trim(),
           };
@@ -154,16 +177,16 @@ export function useCreateStation() {
 
       // 6. Create Station
       const stationRef = doc(collection(db, COLLECTIONS.STATIONS));
-      const station: Station = {
+      const station: Omit<Station, 'id'> = {
         NomStation: formData.NomStation.trim(),
         Adresse: formData.Adresse.trim(),
-        Latitude: formData.Latitude ? parseFloat(formData.Latitude) : null,
-        Longitude: formData.Longitude ? parseFloat(formData.Longitude) : null,
+        Latitude: formData.Latitude ? parseFloat(formData.Latitude) : 0,
+        Longitude: formData.Longitude ? parseFloat(formData.Longitude) : 0,
         Type: formData.Type,
         MarqueID: marqueId,
         CommuneID: communeId,
         GerantID: gerantId,
-        ProprietaireID: proprietaireId,
+        ProprietaireID: proprietaireId || '',
       };
       batch.set(stationRef, station);
       const stationId = stationRef.id;
@@ -171,7 +194,7 @@ export function useCreateStation() {
       // 7. Create Autorisation
       if (formData.NumeroAutorisation.trim()) {
         const autorisationRef = doc(collection(db, COLLECTIONS.AUTORISATIONS));
-        const autorisation: Autorisation = {
+        const autorisation: Omit<Autorisation, 'id'> = {
           StationID: stationId,
           TypeAutorisation: formData.TypeAutorisation,
           NumeroAutorisation: formData.NumeroAutorisation.trim(),
@@ -184,7 +207,7 @@ export function useCreateStation() {
       // 8. Create Capacites
       if (formData.CapaciteGasoil.trim()) {
         const capaciteRef = doc(collection(db, COLLECTIONS.CAPACITES_STOCKAGE));
-        const capacite: CapaciteStockage = {
+        const capacite: Omit<CapaciteStockage, 'id'> = {
           StationID: stationId,
           TypeCarburant: 'Gasoil',
           CapaciteLitres: parseFloat(formData.CapaciteGasoil),
@@ -194,7 +217,7 @@ export function useCreateStation() {
 
       if (formData.CapaciteSSP.trim()) {
         const capaciteRef = doc(collection(db, COLLECTIONS.CAPACITES_STOCKAGE));
-        const capacite: CapaciteStockage = {
+        const capacite: Omit<CapaciteStockage, 'id'> = {
           StationID: stationId,
           TypeCarburant: 'SSP',
           CapaciteLitres: parseFloat(formData.CapaciteSSP),
@@ -207,6 +230,7 @@ export function useCreateStation() {
     } catch (err: any) {
       console.error('Error creating station:', err);
       setError(`Failed to create station: ${err.message}`);
+      throw err;
     } finally {
       setLoading(false);
     }

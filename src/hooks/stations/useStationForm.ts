@@ -16,7 +16,7 @@ export function useStationForm(mode: Mode, station?: StationWithDetails) {
   const { createStation, loading: creating, error: createError } = useCreateStation();
   const { updateStation, loading: updating, error: updateError } = useUpdateStation();
 
-  // Provide a fully-typed, empty form model
+  // Provide a fully-typed, empty form model - FIXED
   const empty: StationFormData = useMemo(
     () => ({
       NomStation: '',
@@ -25,23 +25,32 @@ export function useStationForm(mode: Mode, station?: StationWithDetails) {
       Longitude: '',
       Type: 'service',
       
-      // These fields are now handled by separate forms or are looked up
+      // Marque fields
       Marque: '',
       RaisonSociale: '',
+      
+      // Location fields
       Commune: '',
       Province: '',
-      Gerant: '',
+      
+      // Manager fields - FIX: Use separate first/last name fields
+      PrenomGerant: '',
+      NomGerant: '',
       CINGerant: '',
       Telephone: '',
 
+      // Owner fields - FIX: Add missing PrenomProprietaire
       TypeProprietaire: 'Physique',
+      PrenomProprietaire: '',
       NomProprietaire: '',
       NomEntreprise: '',
 
+      // Authorization fields
       TypeAutorisation: 'création',
       NumeroAutorisation: '',
       DateAutorisation: '',
 
+      // Capacity fields
       CapaciteGasoil: '',
       CapaciteSSP: '',
     }),

@@ -1,4 +1,4 @@
-// src/types/station.ts
+// src/types/station.ts - Updated StationFormData type
 export type Station = {
   id: string;
   StationID?: string;
@@ -23,6 +23,7 @@ export type Marque = {
 export type Commune = {
   id: string;
   CommuneID?: string;
+  Commune?: string; // Add this for compatibility
   NomCommune: string;
   ProvinceID: string;
 };
@@ -30,6 +31,7 @@ export type Commune = {
 export type Province = {
   id: string;
   ProvinceID?: string;
+  Province?: string; // Add this for compatibility
   NomProvince: string;
 };
 
@@ -91,7 +93,7 @@ export type StationWithDetails = {
   capacites: CapaciteStockage[];
 };
 
-// Form data type for creating/editing stations
+// Form data type for creating/editing stations - FIXED
 export type StationFormData = {
   id?: string;
   NomStation: string;
@@ -108,13 +110,13 @@ export type StationFormData = {
   Province: string;
   Commune: string;
   
-  // Manager (note: using separate fields instead of concatenated)
+  // Manager - FIX: Use separate fields for first and last name
   PrenomGerant: string;
   NomGerant: string;
   CINGerant: string;
   Telephone: string;
   
-  // Owner
+  // Owner - FIX: Add missing PrenomProprietaire field
   TypeProprietaire: 'Physique' | 'Morale';
   PrenomProprietaire: string;
   NomProprietaire: string;
