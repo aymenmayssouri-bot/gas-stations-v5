@@ -100,8 +100,8 @@ export function useStationForm(mode: Mode, station?: StationWithDetails) {
     try {
       if (mode === 'create') {
         await createStation(form);
-      } else if (mode === 'edit' && station?.station.id) {
-        await updateStation(station.station.id, form);
+      } else if (mode === 'edit' && station?.station.StationID) {
+        await updateStation(station.station.StationID, form);
       }
       setSubmitting(false);
       return true;
@@ -113,7 +113,7 @@ export function useStationForm(mode: Mode, station?: StationWithDetails) {
       setSubmitting(false);
       return false;
     }
-  }, [form, mode, station?.station.id, createStation, updateStation]);
+  }, [form, mode, station?.station.StationID, createStation, updateStation]);
 
   return { form, updateField, submit, loading, submitting, errors, error };
 }

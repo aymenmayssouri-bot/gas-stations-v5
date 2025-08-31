@@ -1,11 +1,4 @@
-// src/hooks/stations/useStations.ts - FIXED VERSION
-
-// ADDITIONAL FIX: Also check StationsTable.tsx for correct sort keys
-// The sort keys in TableHeader should match these paths:
-// - "NomStation" -> station.NomStation ✓
-// - "NomCommune" -> commune.NomCommune ✓  
-// - "Marque" -> marque.Marque ✓
-// - "Province" -> province.NomProvince (NOT "Province")
+// src/hooks/stations/useStations.ts
 import { useEffect, useState, useCallback } from 'react';
 import {
   collection,
@@ -29,11 +22,23 @@ import {
   Autorisation,
   CapaciteStockage,
 } from '@/types/station';
+import {
+  stationConverter,
+  marqueConverter,
+  communeConverter,
+  provinceConverter,
+  gerantConverter,
+  proprietaireConverter,
+  proprietairePhysiqueConverter,
+  proprietaireMoraleConverter,
+  autorisationConverter,
+  capaciteConverter,
+} from '@/lib/firebase/converters';
 
 const COLLECTIONS = {
   STATIONS: 'stations',
   MARQUES: 'marques',
-  COMMUNES: 'communes', 
+  COMMUNES: 'communes',
   PROVINCES: 'provinces',
   GERANTS: 'gerants',
   PROPRIETAIRES: 'proprietaires',
@@ -53,25 +58,16 @@ export function useStations() {
     setError(null);
 
     try {
-      const stationsSnap = await getDocs(collection(db, COLLECTIONS.STATIONS));
-      const baseStations: Station[] = stationsSnap.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as Omit<Station, 'id'>),
-      }));
-
-      console.log('Base stations loaded:', baseStations);
+      // ✅ Load base stations with converter
+      const stationsSnap = await getDocs(
+        collection(db, COLLECTIONS.STATIONS).withConverter(stationConverter)
+      );
+      const baseStations: Station[] = stationsSnap.docs.map((d) => d.data());
 
       const results: StationWithDetails[] = [];
 
       for (const station of baseStations) {
-        console.log('Processing station:', station.NomStation, 'with IDs:', {
-          MarqueID: station.MarqueID,
-          CommuneID: station.CommuneID,
-          GerantID: station.GerantID,
-          ProprietaireID: station.ProprietaireID
-        });
-
-        // Fetch related data - FIXED document existence checks
+        // ✅ Parallel fetches with converters
         const [
           marqueDoc,
           communeDoc,
@@ -81,138 +77,110 @@ export function useStations() {
           capacitesSnap,
         ] = await Promise.all([
           station.MarqueID
-            ? getDoc(doc(db, COLLECTIONS.MARQUES, station.MarqueID))
+            ? getDoc(
+                doc(db, COLLECTIONS.MARQUES, station.MarqueID).withConverter(marqueConverter)
+              )
             : Promise.resolve(null),
           station.CommuneID
-            ? getDoc(doc(db, COLLECTIONS.COMMUNES, station.CommuneID))
+            ? getDoc(
+                doc(db, COLLECTIONS.COMMUNES, station.CommuneID).withConverter(communeConverter)
+              )
             : Promise.resolve(null),
           station.GerantID
-            ? getDoc(doc(db, COLLECTIONS.GERANTS, station.GerantID))
+            ? getDoc(
+                doc(db, COLLECTIONS.GERANTS, station.GerantID).withConverter(gerantConverter)
+              )
             : Promise.resolve(null),
           station.ProprietaireID
-            ? getDoc(doc(db, COLLECTIONS.PROPRIETAIRES, station.ProprietaireID))
+            ? getDoc(
+                doc(db, COLLECTIONS.PROPRIETAIRES, station.ProprietaireID).withConverter(proprietaireConverter)
+              )
             : Promise.resolve(null),
           getDocs(
             query(
-              collection(db, COLLECTIONS.AUTORISATIONS),
-              where('StationID', '==', station.id)
+              collection(db, COLLECTIONS.AUTORISATIONS).withConverter(autorisationConverter),
+              where('StationID', '==', station.StationID)
             )
           ),
           getDocs(
             query(
-              collection(db, COLLECTIONS.CAPACITES_STOCKAGE),
-              where('StationID', '==', station.id)
+              collection(db, COLLECTIONS.CAPACITES_STOCKAGE).withConverter(capaciteConverter),
+              where('StationID', '==', station.StationID)
             )
           ),
         ]);
 
-        // FIXED: Proper document existence checks and data extraction
-        const marque: Marque = marqueDoc?.exists() 
-          ? { id: marqueDoc.id, ...marqueDoc.data() as Omit<Marque, 'id'> }
-          : { id: '', Marque: 'Unknown', RaisonSociale: '' };
+        // ✅ Build related objects safely
+        const marque: Marque = marqueDoc?.exists()
+          ? marqueDoc.data()
+          : { MarqueID: '', Marque: 'Unknown', RaisonSociale: '' };
 
-        const commune: Commune = communeDoc?.exists() 
-          ? { id: communeDoc.id, ...communeDoc.data() as Omit<Commune, 'id'> }
-          : { id: '', NomCommune: 'Unknown', ProvinceID: '' };
+        const commune: Commune = communeDoc?.exists()
+          ? communeDoc.data()
+          : { CommuneID: '', NomCommune: 'Unknown', ProvinceID: '' };
 
-        // FIXED: Fetch province using the commune's ProvinceID
-        let province: Province = { id: '', NomProvince: 'Unknown' };
+        // ✅ Province via commune
+        let province: Province = { ProvinceID: '', NomProvince: 'Unknown' };
         if (commune.ProvinceID) {
-          try {
-            const provDoc = await getDoc(doc(db, COLLECTIONS.PROVINCES, commune.ProvinceID));
-            if (provDoc.exists()) {
-              province = { 
-                id: provDoc.id, 
-                ...provDoc.data() as Omit<Province, 'id'> 
-              };
-            }
-          } catch (provError) {
-            console.error('Error fetching province:', provError);
+          const provDoc = await getDoc(
+            doc(db, COLLECTIONS.PROVINCES, commune.ProvinceID).withConverter(provinceConverter)
+          );
+          if (provDoc.exists()) {
+            province = provDoc.data();
           }
         }
 
-        const gerant: Gerant = gerantDoc?.exists() 
+        const gerant: Gerant = gerantDoc?.exists()
           ? {
-              id: gerantDoc.id,
-              ...gerantDoc.data() as Omit<Gerant, 'id'>,
-              fullName: `${(gerantDoc.data() as any)?.PrenomGerant || ''} ${(gerantDoc.data() as any)?.NomGerant || ''}`.trim(),
+              ...gerantDoc.data(),
+              fullName: `${gerantDoc.data().PrenomGerant || ''} ${gerantDoc.data().NomGerant || ''}`.trim(),
             }
-          : { 
-              id: '', 
-              NomGerant: 'Unknown', 
-              PrenomGerant: '', 
-              CINGerant: '', 
-              Telephone: '', 
-              fullName: 'Unknown' 
+          : {
+              GerantID: '',
+              NomGerant: 'Unknown',
+              PrenomGerant: '',
+              CINGerant: '',
+              Telephone: '',
+              fullName: 'Unknown',
             };
 
-        // FIXED: Proprietaire fetching
+        // ✅ Proprietaire with nested fetch
         let proprietaire: StationWithDetails['proprietaire'] = undefined;
         if (proprietaireBaseDoc?.exists()) {
-          const base = { 
-            id: proprietaireBaseDoc.id, 
-            ...proprietaireBaseDoc.data() as Omit<Proprietaire, 'id'> 
-          };
+          const base = proprietaireBaseDoc.data();
 
-          try {
-            if (base.TypeProprietaire === 'Physique') {
-              const physSnap = await getDocs(
-                query(
-                  collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES),
-                  where('ProprietaireID', '==', proprietaireBaseDoc.id)
-                )
-              );
-              if (!physSnap.empty) {
-                const details = { 
-                  id: physSnap.docs[0].id, 
-                  ...physSnap.docs[0].data() as Omit<ProprietairePhysique, 'id'> 
-                };
-                proprietaire = { base, details };
-              }
-            } else if (base.TypeProprietaire === 'Morale') {
-              const morSnap = await getDocs(
-                query(
-                  collection(db, COLLECTIONS.PROPRIETAIRES_MORALES),
-                  where('ProprietaireID', '==', proprietaireBaseDoc.id)
-                )
-              );
-              if (!morSnap.empty) {
-                const details = { 
-                  id: morSnap.docs[0].id, 
-                  ...morSnap.docs[0].data() as Omit<ProprietaireMorale, 'id'> 
-                };
-                proprietaire = { base, details };
-              }
+          if (base.TypeProprietaire === 'Physique') {
+            const physSnap = await getDocs(
+              query(
+                collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES).withConverter(proprietairePhysiqueConverter),
+                where('ProprietaireID', '==', base.ProprietaireID)
+              )
+            );
+            if (!physSnap.empty) {
+              proprietaire = { base, details: physSnap.docs[0].data() };
             }
-          } catch (propError) {
-            console.error('Error fetching proprietaire details:', propError);
+          } else if (base.TypeProprietaire === 'Morale') {
+            const morSnap = await getDocs(
+              query(
+                collection(db, COLLECTIONS.PROPRIETAIRES_MORALES).withConverter(proprietaireMoraleConverter),
+                where('ProprietaireID', '==', base.ProprietaireID)
+              )
+            );
+            if (!morSnap.empty) {
+              proprietaire = { base, details: morSnap.docs[0].data() };
+            }
           }
         }
 
-        // FIXED: Autorisations with proper date handling
-        const autorisations: Autorisation[] = autorisationsSnap.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            StationID: data.StationID,
-            TypeAutorisation: data.TypeAutorisation,
-            NumeroAutorisation: data.NumeroAutorisation,
-            DateAutorisation: data.DateAutorisation?.toDate?.() || null,
-          };
-        });
-
-        const capacites: CapaciteStockage[] = capacitesSnap.docs.map((d) => ({
-          id: d.id,
-          ...d.data() as Omit<CapaciteStockage, 'id'>,
+        // ✅ Collections with converters
+        const autorisations: Autorisation[] = autorisationsSnap.docs.map((d) => ({
+          ...d.data(),
+          // Fix Firestore Timestamp -> Date
+          DateAutorisation:
+            (d.data().DateAutorisation as any)?.toDate?.() || null,
         }));
 
-        console.log('Processed station data:', {
-          station: station.NomStation,
-          marque: marque.Marque,
-          commune: commune.NomCommune,
-          province: province.NomProvince,
-          gerant: gerant.fullName
-        });
+        const capacites: CapaciteStockage[] = capacitesSnap.docs.map((d) => d.data());
 
         results.push({
           station,
@@ -226,7 +194,6 @@ export function useStations() {
         });
       }
 
-      console.log('Final results:', results);
       setStations(results);
     } catch (err: any) {
       console.error('Failed to load stations:', err);

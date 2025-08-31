@@ -23,19 +23,20 @@ import {
   CapaciteStockage,
   StationFormData,
 } from '@/types/station';
+import {
+  stationConverter,
+  marqueConverter,
+  provinceConverter,
+  communeConverter,
+  gerantConverter,
+  proprietaireConverter,
+  proprietairePhysiqueConverter,
+  proprietaireMoraleConverter,
+  autorisationConverter,
+  capaciteConverter,
+} from '@/lib/firebase/converters';
 
-const COLLECTIONS = {
-  STATIONS: 'stations',
-  PROVINCES: 'provinces',
-  COMMUNES: 'communes', 
-  MARQUES: 'marques',
-  GERANTS: 'gerants',
-  PROPRIETAIRES: 'proprietaires',
-  PROPRIETAIRES_PHYSIQUES: 'proprietaires_physiques',
-  PROPRIETAIRES_MORALES: 'proprietaires_morales',
-  AUTORISATIONS: 'autorisations',
-  CAPACITES_STOCKAGE: 'capacites_stockage',
-};
+import { COLLECTIONS } from '@/lib/firebase/collections';
 
 export function useCreateStation() {
   const [loading, setLoading] = useState(false);
@@ -47,23 +48,28 @@ export function useCreateStation() {
     const batch = writeBatch(db);
 
     try {
-      // 1. Create or find Marque
+      // 1. Marque
       let marqueId: string;
-      const existingMarqueSnapshot = await getDocs(
-        query(collection(db, COLLECTIONS.MARQUES), where('Marque', '==', formData.Marque.trim()))
+      const marqueSnap = await getDocs(
+        query(
+          collection(db, COLLECTIONS.MARQUES).withConverter(marqueConverter),
+          where('Marque', '==', formData.Marque.trim())
+        )
       );
 
-      if (!existingMarqueSnapshot.empty) {
-        marqueId = existingMarqueSnapshot.docs[0].id;
-        // Update RaisonSociale if it's different
+      if (!marqueSnap.empty) {
+        marqueId = marqueSnap.docs[0].id;
         if (formData.RaisonSociale.trim()) {
-          batch.update(existingMarqueSnapshot.docs[0].ref, {
-            RaisonSociale: formData.RaisonSociale.trim()
+          batch.update(marqueSnap.docs[0].ref, {
+            RaisonSociale: formData.RaisonSociale.trim(),
           });
         }
       } else {
-        const marqueRef = doc(collection(db, COLLECTIONS.MARQUES));
-        const marque: Omit<Marque, 'id'> = {
+        const marqueRef = doc(
+          collection(db, COLLECTIONS.MARQUES).withConverter(marqueConverter)
+        );
+        const marque: Marque = {
+          MarqueID: marqueRef.id,
           Marque: formData.Marque.trim(),
           RaisonSociale: formData.RaisonSociale.trim(),
         };
@@ -71,67 +77,76 @@ export function useCreateStation() {
         marqueId = marqueRef.id;
       }
 
-      // 2. Create or find Province
+      // 2. Province
       let provinceId: string;
-      const existingProvinceSnapshot = await getDocs(
-        query(collection(db, COLLECTIONS.PROVINCES), where('Province', '==', formData.Province.trim()))
+      const provSnap = await getDocs(
+        query(
+          collection(db, COLLECTIONS.PROVINCES).withConverter(provinceConverter),
+          where('NomProvince', '==', formData.Province.trim())
+        )
       );
 
-      if (!existingProvinceSnapshot.empty) {
-        provinceId = existingProvinceSnapshot.docs[0].id;
+      if (!provSnap.empty) {
+        provinceId = provSnap.docs[0].id;
       } else {
-        const provinceRef = doc(collection(db, COLLECTIONS.PROVINCES));
-        const province: Omit<Province, 'id'> = { 
-          NomProvince: formData.Province.trim() 
+        const provRef = doc(
+          collection(db, COLLECTIONS.PROVINCES).withConverter(provinceConverter)
+        );
+        const province: Province = {
+          ProvinceID: provRef.id,
+          NomProvince: formData.Province.trim(),
         };
-        batch.set(provinceRef, province);
-        provinceId = provinceRef.id;
+        batch.set(provRef, province);
+        provinceId = provRef.id;
       }
 
-      // 3. Create or find Commune
+      // 3. Commune
       let communeId: string;
-      const existingCommuneSnapshot = await getDocs(
+      const commSnap = await getDocs(
         query(
-          collection(db, COLLECTIONS.COMMUNES),
-          where('Commune', '==', formData.Commune.trim()),
+          collection(db, COLLECTIONS.COMMUNES).withConverter(communeConverter),
+          where('NomCommune', '==', formData.Commune.trim()),
           where('ProvinceID', '==', provinceId)
         )
       );
 
-      if (!existingCommuneSnapshot.empty) {
-        communeId = existingCommuneSnapshot.docs[0].id;
+      if (!commSnap.empty) {
+        communeId = commSnap.docs[0].id;
       } else {
-        const communeRef = doc(collection(db, COLLECTIONS.COMMUNES));
-        const commune: Omit<Commune, 'id'> = {
-          NomCommune: formData.Commune.trim(), 
+        const commRef = doc(
+          collection(db, COLLECTIONS.COMMUNES).withConverter(communeConverter)
+        );
+        const commune: Commune = {
+          CommuneID: commRef.id,
+          NomCommune: formData.Commune.trim(),
           ProvinceID: provinceId,
         };
-        batch.set(communeRef, commune);
-        communeId = communeRef.id;
+        batch.set(commRef, commune);
+        communeId = commRef.id;
       }
 
-      // 4. Create or find Gerant - FIX: Use the correct field names
+      // 4. Gerant
       let gerantId: string;
-      const fullGerantName = `${formData.PrenomGerant.trim()} ${formData.NomGerant.trim()}`.trim();
-      
-      const existingGerantSnapshot = await getDocs(
+      const gerantSnap = await getDocs(
         query(
-          collection(db, COLLECTIONS.GERANTS),
+          collection(db, COLLECTIONS.GERANTS).withConverter(gerantConverter),
           where('CINGerant', '==', formData.CINGerant.trim())
         )
       );
 
-      if (!existingGerantSnapshot.empty) {
-        gerantId = existingGerantSnapshot.docs[0].id;
-        // Update gerant info if needed
-        batch.update(existingGerantSnapshot.docs[0].ref, {
+      if (!gerantSnap.empty) {
+        gerantId = gerantSnap.docs[0].id;
+        batch.update(gerantSnap.docs[0].ref, {
           PrenomGerant: formData.PrenomGerant.trim(),
           NomGerant: formData.NomGerant.trim(),
           Telephone: formData.Telephone.trim() || undefined,
         });
       } else {
-        const gerantRef = doc(collection(db, COLLECTIONS.GERANTS));
-        const gerant: Omit<Gerant, 'id'> = {
+        const gerantRef = doc(
+          collection(db, COLLECTIONS.GERANTS).withConverter(gerantConverter)
+        );
+        const gerant: Gerant = {
+          GerantID: gerantRef.id,
           PrenomGerant: formData.PrenomGerant.trim(),
           NomGerant: formData.NomGerant.trim(),
           CINGerant: formData.CINGerant.trim(),
@@ -141,41 +156,52 @@ export function useCreateStation() {
         gerantId = gerantRef.id;
       }
 
-      // 5. Create Proprietaire if provided
+      // 5. Proprietaire
       let proprietaireId: string | undefined;
-      const proprietaireName = formData.TypeProprietaire === 'Physique' 
-        ? formData.NomProprietaire.trim() 
-        : formData.NomEntreprise.trim();
+      const proprietaireName =
+        formData.TypeProprietaire === 'Physique'
+          ? formData.NomProprietaire.trim()
+          : formData.NomEntreprise.trim();
 
       if (proprietaireName) {
-        const proprietaireRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES));
-        const proprietaire: Omit<Proprietaire, 'id'> = { 
-          TypeProprietaire: formData.TypeProprietaire 
+        const propRef = doc(
+          collection(db, COLLECTIONS.PROPRIETAIRES).withConverter(proprietaireConverter)
+        );
+        const proprietaire: Proprietaire = {
+          ProprietaireID: propRef.id,
+          TypeProprietaire: formData.TypeProprietaire,
         };
-        batch.set(proprietaireRef, proprietaire);
-        proprietaireId = proprietaireRef.id;
+        batch.set(propRef, proprietaire);
+        proprietaireId = propRef.id;
 
         if (formData.TypeProprietaire === 'Physique') {
-          const physiqueRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES));
-          const physique: Omit<ProprietairePhysique, 'id'> = {
+          const physRef = doc(
+            collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES).withConverter(proprietairePhysiqueConverter)
+          );
+          const physique: ProprietairePhysique = {
             ProprietaireID: proprietaireId,
             NomProprietaire: formData.NomProprietaire.trim(),
             PrenomProprietaire: formData.PrenomProprietaire.trim(),
           };
-          batch.set(physiqueRef, physique);
+          batch.set(physRef, physique);
         } else {
-          const moraleRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES));
-          const morale: Omit<ProprietaireMorale, 'id'> = {
+          const morRef = doc(
+            collection(db, COLLECTIONS.PROPRIETAIRES_MORALES).withConverter(proprietaireMoraleConverter)
+          );
+          const morale: ProprietaireMorale = {
             ProprietaireID: proprietaireId,
             NomEntreprise: formData.NomEntreprise.trim(),
           };
-          batch.set(moraleRef, morale);
+          batch.set(morRef, morale);
         }
       }
 
-      // 6. Create Station
-      const stationRef = doc(collection(db, COLLECTIONS.STATIONS));
-      const station: Omit<Station, 'id'> = {
+      // 6. Station
+      const stationRef = doc(
+        collection(db, COLLECTIONS.STATIONS).withConverter(stationConverter)
+      );
+      const station: Station = {
+        StationID: stationRef.id,
         NomStation: formData.NomStation.trim(),
         Adresse: formData.Adresse.trim(),
         Latitude: formData.Latitude ? parseFloat(formData.Latitude) : 0,
@@ -189,42 +215,51 @@ export function useCreateStation() {
       batch.set(stationRef, station);
       const stationId = stationRef.id;
 
-      // 7. Create Autorisation
+      // 7. Autorisation
       if (formData.NumeroAutorisation.trim()) {
-        const autorisationRef = doc(collection(db, COLLECTIONS.AUTORISATIONS));
-        const autorisation: Omit<Autorisation, 'id'> = {
+        const autoRef = doc(
+          collection(db, COLLECTIONS.AUTORISATIONS).withConverter(autorisationConverter)
+        );
+        const autorisation: Autorisation = {
+          AutorisationID: autoRef.id,
           StationID: stationId,
           TypeAutorisation: formData.TypeAutorisation,
           NumeroAutorisation: formData.NumeroAutorisation.trim(),
-          DateAutorisation: formData.DateAutorisation ?
-            Timestamp.fromDate(new Date(formData.DateAutorisation)).toDate() : null,
+          DateAutorisation: formData.DateAutorisation
+            ? new Date(formData.DateAutorisation)
+            : null,
         };
-        batch.set(autorisationRef, autorisation);
+        batch.set(autoRef, autorisation);
       }
 
-      // 8. Create Capacites
+      // 8. Capacites
       if (formData.CapaciteGasoil.trim()) {
-        const capaciteRef = doc(collection(db, COLLECTIONS.CAPACITES_STOCKAGE));
-        const capacite: Omit<CapaciteStockage, 'id'> = {
+        const capRef = doc(
+          collection(db, COLLECTIONS.CAPACITES_STOCKAGE).withConverter(capaciteConverter)
+        );
+        const cap: CapaciteStockage = {
+          CapaciteID: capRef.id,
           StationID: stationId,
           TypeCarburant: 'Gasoil',
           CapaciteLitres: parseFloat(formData.CapaciteGasoil),
         };
-        batch.set(capaciteRef, capacite);
+        batch.set(capRef, cap);
       }
 
       if (formData.CapaciteSSP.trim()) {
-        const capaciteRef = doc(collection(db, COLLECTIONS.CAPACITES_STOCKAGE));
-        const capacite: Omit<CapaciteStockage, 'id'> = {
+        const capRef = doc(
+          collection(db, COLLECTIONS.CAPACITES_STOCKAGE).withConverter(capaciteConverter)
+        );
+        const cap: CapaciteStockage = {
+          CapaciteID: capRef.id,
           StationID: stationId,
           TypeCarburant: 'SSP',
           CapaciteLitres: parseFloat(formData.CapaciteSSP),
         };
-        batch.set(capaciteRef, capacite);
+        batch.set(capRef, cap);
       }
 
       await batch.commit();
-      
     } catch (err: any) {
       console.error('Error creating station:', err);
       setError(`Failed to create station: ${err.message}`);

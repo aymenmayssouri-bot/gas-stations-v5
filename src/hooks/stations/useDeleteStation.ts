@@ -10,11 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 
-const COLLECTIONS = {
-  STATIONS: 'stations',
-  AUTORISATIONS: 'autorisations',
-  CAPACITES_STOCKAGE: 'capacites_stockage',
-};
+import { COLLECTIONS } from '@/lib/firebase/collections';
 
 export function useDeleteStation() {
   const [loading, setLoading] = useState(false);

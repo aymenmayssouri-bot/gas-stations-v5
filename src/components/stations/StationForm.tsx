@@ -25,9 +25,15 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
   const { provinces } = useProvinces();
   const selectedProvinceId = useMemo(() => {
     const p = provinces.find(p => p.NomProvince === form.Province);
-    return p?.id;
+    return p?.ProvinceID;
   }, [form.Province, provinces]);
   const { communes } = useCommunes(selectedProvinceId);
+
+  // New Memoized value for RaisonSociale
+  const selectedMarqueRaisonSociale = useMemo(() => {
+    const selectedMarque = marques.find(m => m.Marque === form.Marque);
+    return selectedMarque?.RaisonSociale || '';
+  }, [form.Marque, marques]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,26 +99,37 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
 
         {/* Marque / Raison sociale */}
         <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">Marque</label>
+          <label className="mb-1 text-sm font-medium text-gray-700">Marque</label>
           <select
-            className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            name="Marque"
             value={form.Marque}
-            onChange={(e) => updateField('Marque', e.target.value)}
+            onChange={(e) => {
+              const selectedValue = e.target.value;
+              const selectedMarque = marques.find(m => m.Marque === selectedValue);
+              updateField('Marque', selectedValue);
+              updateField('RaisonSociale', selectedMarque?.RaisonSociale || '');
+            }}
+            className="p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
           >
             <option value="">-- choisir --</option>
-            {marques.map(m => (
-              <option key={m.id} value={m.Marque}>{m.Marque}</option>
+            {marques.map((m) => (
+              <option key={m.MarqueID} value={m.Marque}>
+                {m.Marque}
+              </option>
             ))}
           </select>
-          {errors.Marque && <span className="text-red-600 text-xs mt-1">{errors.Marque}</span>}
-        </div>
-        <Input 
-          label="Raison sociale" 
-          name="RaisonSociale" 
-          value={form.RaisonSociale} 
-          onChange={(e) => updateField('RaisonSociale', e.target.value)} 
-          error={errors.RaisonSociale}
-        />
+          {errors.Marque && <ErrorMessage message={errors.Marque} />}
+          </div>
+          
+          <Input
+            label="Raison Sociale"
+            name="RaisonSociale"
+            value={selectedMarqueRaisonSociale}
+            readOnly
+            disabled={true}
+            className="bg-gray-10 cursor-not-allowed"
+            error={errors.RaisonSociale}
+          />
 
         {/* Province / Commune */}
         <div className="flex flex-col">
@@ -124,7 +141,7 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
           >
             <option value="">-- choisir --</option>
             {provinces.map(p => (
-              <option key={p.id} value={ p.NomProvince}>{ p.NomProvince}</option>
+              <option key={p.ProvinceID} value={ p.NomProvince}>{ p.NomProvince}</option>
             ))}
           </select>
           {errors.Province && <span className="text-red-600 text-xs mt-1">{errors.Province}</span>}
@@ -140,7 +157,7 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
           >
             <option value="">-- choisir --</option>
             {communes.map(c => (
-              <option key={c.id} value={c.NomCommune}>{c.NomCommune}</option>
+              <option key={c.CommuneID} value={c.NomCommune}>{c.NomCommune}</option>
             ))}
           </select>
           {errors.Commune && <span className="text-red-600 text-xs mt-1">{errors.Commune}</span>}

@@ -1,7 +1,6 @@
 // src/types/station.ts - Updated StationFormData type
 export type Station = {
-  id: string;
-  StationID?: string;
+  StationID: string;
   NomStation: string;
   Adresse: string;
   Latitude: number;
@@ -14,28 +13,24 @@ export type Station = {
 };
 
 export type Marque = {
-  id: string;
-  MarqueID?: string;
+  MarqueID: string;
   Marque: string;
   RaisonSociale: string;
 };
 
 export type Commune = {
-  id: string;
-  CommuneID?: string;
+  CommuneID: string;
   NomCommune: string;
   ProvinceID: string;
 };
 
 export type Province = {
-  id: string;
-  ProvinceID?: string;
+  ProvinceID: string;
   NomProvince: string;
 };
 
 export type Gerant = {
-  id: string;
-  GerantID?: string;
+  GerantID: string;
   NomGerant: string;
   PrenomGerant: string;
   CINGerant: string;
@@ -44,26 +39,23 @@ export type Gerant = {
 };
 
 export type Proprietaire = {
-  id: string;
-  ProprietaireID?: string;
+  ProprietaireID: string;
   TypeProprietaire: 'Physique' | 'Morale';
 };
 
 export type ProprietairePhysique = {
-  id: string;
   ProprietaireID: string;
   NomProprietaire: string;
-  PrenomProprietaire?: string;
+  PrenomProprietaire: string;
 };
 
 export type ProprietaireMorale = {
-  id: string;
   ProprietaireID: string;
   NomEntreprise: string;
 };
 
 export type Autorisation = {
-  id: string;
+  AutorisationID: string;
   StationID: string;
   TypeAutorisation: 'création' | 'transformation' | 'transfert' | 'changement de marques';
   NumeroAutorisation: string;
@@ -71,7 +63,7 @@ export type Autorisation = {
 };
 
 export type CapaciteStockage = {
-  id: string;
+  CapaciteID: string;
   StationID: string;
   TypeCarburant: 'Gasoil' | 'SSP';
   CapaciteLitres: number;

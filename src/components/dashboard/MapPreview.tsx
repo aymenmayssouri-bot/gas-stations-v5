@@ -22,7 +22,7 @@ export default function MapPreview({ stations }: MapPreviewProps) {
     <GoogleMap mapContainerStyle={mapContainerStyle} zoom={6} center={center}>
       {stations.map((s) => (
         <Marker
-          key={s.station.id}
+          key={s.station.StationID}
           position={{ lat: s.station.Latitude || 0, lng: s.station.Longitude || 0 }}
           onClick={() => setSelected(s)}
         />
