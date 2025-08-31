@@ -23,7 +23,6 @@ export type Marque = {
 export type Commune = {
   id: string;
   CommuneID?: string;
-  Commune?: string; // Add this for compatibility
   NomCommune: string;
   ProvinceID: string;
 };
@@ -31,7 +30,6 @@ export type Commune = {
 export type Province = {
   id: string;
   ProvinceID?: string;
-  Province?: string; // Add this for compatibility
   NomProvince: string;
 };
 

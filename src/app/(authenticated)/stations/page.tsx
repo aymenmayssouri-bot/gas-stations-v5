@@ -63,23 +63,36 @@ export default function StationsPage() {
           bValue = b.station.NomStation;
           break;
         case "NomCommune":
-          aValue = a.commune.NomCommune;
-          bValue = b.commune.NomCommune;
+          aValue = a.commune?.NomCommune || '';
+          bValue = b.commune?.NomCommune || '';
           break;
         case "Marque":
-          aValue = a.marque.Marque;
-          bValue = b.marque.Marque;
+          aValue = a.marque?.Marque || '';
+          bValue = b.marque?.Marque || '';
           break;
-        case "Province":
-          aValue = a.province.NomProvince;
-          bValue = b.province.NomProvince;
+        case "NomProvince": // FIXED: Use correct key
+          aValue = a.province?.NomProvince || '';
+          bValue = b.province?.NomProvince || '';
+          break;
+        case "Adresse":
+          aValue = a.station.Adresse || '';
+          bValue = b.station.Adresse || '';
           break;
         default:
           return 0;
       }
 
-      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+      // Handle null/undefined values
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return sortConfig.direction === "asc" ? 1 : -1;
+      if (bValue == null) return sortConfig.direction === "asc" ? -1 : 1;
+
+      // Convert to string for comparison
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+
+      if (aStr < bStr) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aStr > bStr) return sortConfig.direction === "asc" ? 1 : -1;
       return 0;
     });
     return sorted;

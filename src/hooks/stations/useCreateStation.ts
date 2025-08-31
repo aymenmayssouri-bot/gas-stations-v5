@@ -27,7 +27,7 @@ import {
 const COLLECTIONS = {
   STATIONS: 'stations',
   PROVINCES: 'provinces',
-  COMMUNES: 'Communes', // Note: capital C to match your existing data
+  COMMUNES: 'communes', 
   MARQUES: 'marques',
   GERANTS: 'gerants',
   PROPRIETAIRES: 'proprietaires',
@@ -82,8 +82,7 @@ export function useCreateStation() {
       } else {
         const provinceRef = doc(collection(db, COLLECTIONS.PROVINCES));
         const province: Omit<Province, 'id'> = { 
-          Province: formData.Province.trim(),
-          NomProvince: formData.Province.trim() // Add this field to match your data structure
+          NomProvince: formData.Province.trim() 
         };
         batch.set(provinceRef, province);
         provinceId = provinceRef.id;
@@ -104,8 +103,7 @@ export function useCreateStation() {
       } else {
         const communeRef = doc(collection(db, COLLECTIONS.COMMUNES));
         const commune: Omit<Commune, 'id'> = {
-          Commune: formData.Commune.trim(),
-          NomCommune: formData.Commune.trim(), // Add this field to match your data structure
+          NomCommune: formData.Commune.trim(), 
           ProvinceID: provinceId,
         };
         batch.set(communeRef, commune);

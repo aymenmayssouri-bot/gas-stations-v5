@@ -24,7 +24,7 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
   const { marques } = useMarques();
   const { provinces } = useProvinces();
   const selectedProvinceId = useMemo(() => {
-    const p = provinces.find(p => p.Province === form.Province);
+    const p = provinces.find(p => p.NomProvince === form.Province);
     return p?.id;
   }, [form.Province, provinces]);
   const { communes } = useCommunes(selectedProvinceId);
@@ -124,7 +124,7 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
           >
             <option value="">-- choisir --</option>
             {provinces.map(p => (
-              <option key={p.id} value={p.Province || p.NomProvince}>{p.Province || p.NomProvince}</option>
+              <option key={p.id} value={ p.NomProvince}>{ p.NomProvince}</option>
             ))}
           </select>
           {errors.Province && <span className="text-red-600 text-xs mt-1">{errors.Province}</span>}
@@ -140,7 +140,7 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
           >
             <option value="">-- choisir --</option>
             {communes.map(c => (
-              <option key={c.id} value={c.Commune || c.NomCommune}>{c.Commune || c.NomCommune}</option>
+              <option key={c.id} value={c.NomCommune}>{c.NomCommune}</option>
             ))}
           </select>
           {errors.Commune && <span className="text-red-600 text-xs mt-1">{errors.Commune}</span>}

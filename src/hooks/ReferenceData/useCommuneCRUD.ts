@@ -11,7 +11,7 @@ import { db } from '@/lib/firebase/config';
 import { Commune } from '@/types/station';
 
 const COLLECTIONS = {
-  COMMUNES: 'Communes', // NOTE: capital C
+  COMMUNES: 'communes',
 };
 
 export function useCommuneCRUD() {

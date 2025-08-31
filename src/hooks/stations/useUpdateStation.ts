@@ -28,7 +28,7 @@ import {
 const COLLECTIONS = {
   STATIONS: 'stations',
   PROVINCES: 'provinces',
-  COMMUNES: 'Communes', // Note: capital C to match existing data
+  COMMUNES: 'communes', // Note: capital C to match existing data
   MARQUES: 'marques',
   GERANTS: 'gerants',
   PROPRIETAIRES: 'proprietaires',
@@ -82,7 +82,6 @@ export function useUpdateStation() {
       } else {
         const provinceRef = doc(collection(db, COLLECTIONS.PROVINCES));
         const province: Omit<Province, 'id'> = { 
-          Province: formData.Province.trim(),
           NomProvince: formData.Province.trim()
         };
         batch.set(provinceRef, province);
@@ -103,7 +102,6 @@ export function useUpdateStation() {
       } else {
         const communeRef = doc(collection(db, COLLECTIONS.COMMUNES));
         const commune: Omit<Commune, 'id'> = {
-          Commune: formData.Commune.trim(),
           NomCommune: formData.Commune.trim(),
           ProvinceID: provinceId,
         };

@@ -1,4 +1,11 @@
-// src/hooks/stations/useStations.ts
+// src/hooks/stations/useStations.ts - FIXED VERSION
+
+// ADDITIONAL FIX: Also check StationsTable.tsx for correct sort keys
+// The sort keys in TableHeader should match these paths:
+// - "NomStation" -> station.NomStation ✓
+// - "NomCommune" -> commune.NomCommune ✓  
+// - "Marque" -> marque.Marque ✓
+// - "Province" -> province.NomProvince (NOT "Province")
 import { useEffect, useState, useCallback } from 'react';
 import {
   collection,
@@ -26,7 +33,7 @@ import {
 const COLLECTIONS = {
   STATIONS: 'stations',
   MARQUES: 'marques',
-  COMMUNES: 'Communes', // NOTE: capital C matches your data
+  COMMUNES: 'communes', 
   PROVINCES: 'provinces',
   GERANTS: 'gerants',
   PROPRIETAIRES: 'proprietaires',
@@ -49,13 +56,22 @@ export function useStations() {
       const stationsSnap = await getDocs(collection(db, COLLECTIONS.STATIONS));
       const baseStations: Station[] = stationsSnap.docs.map((d) => ({
         id: d.id,
-        ...(d.data() as Station),
+        ...(d.data() as Omit<Station, 'id'>),
       }));
+
+      console.log('Base stations loaded:', baseStations);
 
       const results: StationWithDetails[] = [];
 
       for (const station of baseStations) {
-        // Fetch related data in parallel where possible
+        console.log('Processing station:', station.NomStation, 'with IDs:', {
+          MarqueID: station.MarqueID,
+          CommuneID: station.CommuneID,
+          GerantID: station.GerantID,
+          ProprietaireID: station.ProprietaireID
+        });
+
+        // Fetch related data - FIXED document existence checks
         const [
           marqueDoc,
           communeDoc,
@@ -79,92 +95,124 @@ export function useStations() {
           getDocs(
             query(
               collection(db, COLLECTIONS.AUTORISATIONS),
-              where('StationID', '==', station.id as string)
+              where('StationID', '==', station.id)
             )
           ),
           getDocs(
             query(
               collection(db, COLLECTIONS.CAPACITES_STOCKAGE),
-              where('StationID', '==', station.id as string)
+              where('StationID', '==', station.id)
             )
           ),
         ]);
 
-        // Marque
-        const marque: Marque = marqueDoc && 'exists' in (marqueDoc as any) && (marqueDoc as any).exists()
-          ? ({ id: (marqueDoc as any).id, ...((marqueDoc as any).data() as any) })
-          : ({ id: '', Marque: '', RaisonSociale: '' });
+        // FIXED: Proper document existence checks and data extraction
+        const marque: Marque = marqueDoc?.exists() 
+          ? { id: marqueDoc.id, ...marqueDoc.data() as Omit<Marque, 'id'> }
+          : { id: '', Marque: 'Unknown', RaisonSociale: '' };
 
-        // Commune + Province (via commune.ProvinceID)
-        const commune: Commune = communeDoc && 'exists' in (communeDoc as any) && (communeDoc as any).exists()
-          ? ({ id: (communeDoc as any).id, ...((communeDoc as any).data() as any) })
-          : ({ id: '', NomCommune: '', ProvinceID: '' });
+        const commune: Commune = communeDoc?.exists() 
+          ? { id: communeDoc.id, ...communeDoc.data() as Omit<Commune, 'id'> }
+          : { id: '', NomCommune: 'Unknown', ProvinceID: '' };
 
-        let province: Province = { id: '', NomProvince: '' };
-        if (commune?.ProvinceID) {
-          const provDoc = await getDoc(doc(db, COLLECTIONS.PROVINCES, commune.ProvinceID));
-          if ('exists' in (provDoc as any) && (provDoc as any).exists()) {
-            province = { id: (provDoc as any).id, ...((provDoc as any).data() as any) } as Province;
+        // FIXED: Fetch province using the commune's ProvinceID
+        let province: Province = { id: '', NomProvince: 'Unknown' };
+        if (commune.ProvinceID) {
+          try {
+            const provDoc = await getDoc(doc(db, COLLECTIONS.PROVINCES, commune.ProvinceID));
+            if (provDoc.exists()) {
+              province = { 
+                id: provDoc.id, 
+                ...provDoc.data() as Omit<Province, 'id'> 
+              };
+            }
+          } catch (provError) {
+            console.error('Error fetching province:', provError);
           }
         }
 
-        // Gérant (split first/last names)
-        const gerant: Gerant = gerantDoc && 'exists' in (gerantDoc as any) && (gerantDoc as any).exists()
-          ? ({
-              id: (gerantDoc as any).id,
-              ...((gerantDoc as any).data() as any),
-              fullName: `${((gerantDoc as any).data() as any).PrenomGerant || ''} ${((gerantDoc as any).data() as any).NomGerant || ''}`.trim(),
-            })
-          : ({ id: '', NomGerant: '', PrenomGerant: '', CINGerant: '', Telephone: undefined, fullName: '' });
+        const gerant: Gerant = gerantDoc?.exists() 
+          ? {
+              id: gerantDoc.id,
+              ...gerantDoc.data() as Omit<Gerant, 'id'>,
+              fullName: `${(gerantDoc.data() as any)?.PrenomGerant || ''} ${(gerantDoc.data() as any)?.NomGerant || ''}`.trim(),
+            }
+          : { 
+              id: '', 
+              NomGerant: 'Unknown', 
+              PrenomGerant: '', 
+              CINGerant: '', 
+              Telephone: '', 
+              fullName: 'Unknown' 
+            };
 
-        // Propriétaire
+        // FIXED: Proprietaire fetching
         let proprietaire: StationWithDetails['proprietaire'] = undefined;
-        if (proprietaireBaseDoc && 'exists' in (proprietaireBaseDoc as any) && (proprietaireBaseDoc as any).exists()) {
-          const base = { id: (proprietaireBaseDoc as any).id, ...((proprietaireBaseDoc as any).data() as Proprietaire) };
+        if (proprietaireBaseDoc?.exists()) {
+          const base = { 
+            id: proprietaireBaseDoc.id, 
+            ...proprietaireBaseDoc.data() as Omit<Proprietaire, 'id'> 
+          };
 
-          if (base.TypeProprietaire === 'Physique') {
-            const physSnap = await getDocs(
-              query(
-                collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES),
-                where('ProprietaireID', '==', (proprietaireBaseDoc as any).id)
-              )
-            );
-            if (!physSnap.empty) {
-              const d = physSnap.docs[0];
-              const details = { id: d.id, ...(d.data() as ProprietairePhysique) };
-              proprietaire = { base, details };
+          try {
+            if (base.TypeProprietaire === 'Physique') {
+              const physSnap = await getDocs(
+                query(
+                  collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES),
+                  where('ProprietaireID', '==', proprietaireBaseDoc.id)
+                )
+              );
+              if (!physSnap.empty) {
+                const details = { 
+                  id: physSnap.docs[0].id, 
+                  ...physSnap.docs[0].data() as Omit<ProprietairePhysique, 'id'> 
+                };
+                proprietaire = { base, details };
+              }
+            } else if (base.TypeProprietaire === 'Morale') {
+              const morSnap = await getDocs(
+                query(
+                  collection(db, COLLECTIONS.PROPRIETAIRES_MORALES),
+                  where('ProprietaireID', '==', proprietaireBaseDoc.id)
+                )
+              );
+              if (!morSnap.empty) {
+                const details = { 
+                  id: morSnap.docs[0].id, 
+                  ...morSnap.docs[0].data() as Omit<ProprietaireMorale, 'id'> 
+                };
+                proprietaire = { base, details };
+              }
             }
-          } else if (base.TypeProprietaire === 'Morale') {
-            const morSnap = await getDocs(
-              query(
-                collection(db, COLLECTIONS.PROPRIETAIRES_MORALES),
-                where('ProprietaireID', '==', (proprietaireBaseDoc as any).id)
-              )
-            );
-            if (!morSnap.empty) {
-              const d = morSnap.docs[0];
-              const details = { id: d.id, ...(d.data() as ProprietaireMorale) };
-              proprietaire = { base, details };
-            }
+          } catch (propError) {
+            console.error('Error fetching proprietaire details:', propError);
           }
         }
 
-        // Autorisations & capacités
+        // FIXED: Autorisations with proper date handling
         const autorisations: Autorisation[] = autorisationsSnap.docs.map((d) => {
-          const raw = d.data() as any;
+          const data = d.data();
           return {
             id: d.id,
-            StationID: raw.StationID,
-            TypeAutorisation: raw.TypeAutorisation,
-            NumeroAutorisation: raw.NumeroAutorisation,
-            DateAutorisation: raw.DateAutorisation?.toDate?.() ?? null,
-          } as Autorisation;
+            StationID: data.StationID,
+            TypeAutorisation: data.TypeAutorisation,
+            NumeroAutorisation: data.NumeroAutorisation,
+            DateAutorisation: data.DateAutorisation?.toDate?.() || null,
+          };
         });
 
         const capacites: CapaciteStockage[] = capacitesSnap.docs.map((d) => ({
           id: d.id,
-          ...(d.data() as CapaciteStockage),
+          ...d.data() as Omit<CapaciteStockage, 'id'>,
         }));
+
+        console.log('Processed station data:', {
+          station: station.NomStation,
+          marque: marque.Marque,
+          commune: commune.NomCommune,
+          province: province.NomProvince,
+          gerant: gerant.fullName
+        });
 
         results.push({
           station,
@@ -178,6 +226,7 @@ export function useStations() {
         });
       }
 
+      console.log('Final results:', results);
       setStations(results);
     } catch (err: any) {
       console.error('Failed to load stations:', err);

@@ -1,4 +1,4 @@
-// src/components/stations/StationsTable.tsx
+// src/components/stations/StationsTable.tsx - FIXED VERSION
 'use client';
 
 import React from 'react';
@@ -62,9 +62,10 @@ export default function StationsTable({
                 sortConfig={sortConfig}
                 onSortChange={onSortChange}
               />
+              {/* FIXED: Use correct sort key for Province */}
               <TableHeader
                 label="Province"
-                sortKey="Province"
+                sortKey="NomProvince"
                 sortConfig={sortConfig}
                 onSortChange={onSortChange}
               />
@@ -97,7 +98,7 @@ export default function StationsTable({
               visible.map((s) => (
                 <tr key={s.station.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{s.station.NomStation}</div>
+                    <div className="font-medium text-gray-900">{s.station.NomStation || '-'}</div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="text-sm text-gray-900">{s.station.Adresse || '-'}</div>
