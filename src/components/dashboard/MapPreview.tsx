@@ -1,10 +1,10 @@
 // src/components/dashboard/MapPreview.tsx
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleMap, useLoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 import { StationWithDetails } from '@/types/station';
 
 interface MapPreviewProps { stations: StationWithDetails[] }
-const mapContainerStyle = { width: '100%', height: '480px', borderRadius: '16px' };
+const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '8px' };
 
 function safeFullName(first?: string, last?: string) {
   return `${first || ''} ${last || ''}`.trim();
@@ -13,45 +13,65 @@ function safeFullName(first?: string, last?: string) {
 export default function MapPreview({ stations }: MapPreviewProps) {
   const { isLoaded } = useLoadScript({ googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '' });
   const [selected, setSelected] = useState<StationWithDetails | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
 
-  const center = useMemo(() => ({ lat: 31.6295, lng: -7.9811 }), []); // Morocco center-ish
+  const center = useMemo(() => ({ lat: 31.7917, lng: -7.0926 }), []); // Morocco center
 
-  if (!isLoaded) return null;
+  const onLoad = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current || !window.google) return;
+
+    if (stations.length === 0) {
+        mapRef.current.setCenter(center);
+        mapRef.current.setZoom(6);
+        return;
+    }
+
+    const bounds = new window.google.maps.LatLngBounds();
+    let hasValidCoords = false;
+    stations.forEach(s => {
+      if (s.station.Latitude && s.station.Longitude) {
+        bounds.extend({ lat: s.station.Latitude, lng: s.station.Longitude });
+        hasValidCoords = true;
+      }
+    });
+
+    if (hasValidCoords) {
+      mapRef.current.fitBounds(bounds);
+    } else {
+      mapRef.current.setCenter(center);
+      mapRef.current.setZoom(6);
+    }
+  }, [stations, center]);
+
+  if (!isLoaded) return <div>Loading Map...</div>;
 
   return (
-    <GoogleMap mapContainerStyle={mapContainerStyle} zoom={6} center={center}>
+    <GoogleMap mapContainerStyle={mapContainerStyle} zoom={6} center={center} onLoad={onLoad}>
       {stations.map((s) => (
-        <Marker
-          key={s.station.StationID}
-          position={{ lat: s.station.Latitude || 0, lng: s.station.Longitude || 0 }}
-          onClick={() => setSelected(s)}
-        />
+        s.station.Latitude && s.station.Longitude ? (
+          <Marker
+            key={s.station.StationID}
+            position={{ lat: s.station.Latitude, lng: s.station.Longitude }}
+            onClick={() => setSelected(s)}
+          />
+        ) : null
       ))}
 
-      {selected && (
+      {selected && selected.station.Latitude && selected.station.Longitude && (
         <InfoWindow
-          position={{ lat: selected.station.Latitude || 0, lng: selected.station.Longitude || 0 }}
+          position={{ lat: selected.station.Latitude, lng: selected.station.Longitude }}
           onCloseClick={() => setSelected(null)}
         >
           <div style={{ maxWidth: 260 }}>
             <div className="font-semibold">{selected.station.NomStation}</div>
             <div className="text-xs text-gray-600">{selected.station.Adresse}</div>
             <div className="mt-2 space-y-1 text-sm">
-              <div><strong>Commune:</strong> {selected.commune.NomCommune}</div>
-              <div><strong>Province:</strong> {selected.province.NomProvince}</div>
               <div><strong>Marque:</strong> {selected.marque.Marque}</div>
-              <div><strong>Gérant:</strong> {selected.gerant.fullName || safeFullName(selected.gerant.PrenomGerant, selected.gerant.NomGerant)}</div>
-              {selected.proprietaire && (
-                <div>
-                  <strong>Propriétaire:</strong>{' '}
-                  {selected.proprietaire.base.TypeProprietaire === 'Physique'
-                    ? safeFullName(
-                        (selected.proprietaire.details as any).PrenomProprietaire,
-                        (selected.proprietaire.details as any).NomProprietaire,
-                      )
-                    : (selected.proprietaire.details as any).NomEntreprise}
-                </div>
-              )}
+              <div><strong>Gérant:</strong> {safeFullName(selected.gerant.PrenomGerant, selected.gerant.NomGerant)}</div>
             </div>
           </div>
         </InfoWindow>

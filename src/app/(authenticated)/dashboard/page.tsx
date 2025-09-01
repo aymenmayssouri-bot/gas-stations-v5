@@ -1,18 +1,20 @@
 // src/app/(authenticated)/dashboard/page.tsx
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useStations } from '@/hooks/stations/useStations';
 import MapPreview from '@/components/dashboard/MapPreview';
-import { StationWithDetails } from '@/types/station';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-// Fallback minimal UI components to avoid breaking builds if your design system is different
-function Card({ title, value, children }: { title: string; value?: any; children?: any }) {
+import { StationWithDetails } from '@/types/station'; 
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import Button from '@/components/ui/Button'; // Assuming Button component exists
+import { Checkbox } from '@/components/ui/Checkbox'; // Assuming Checkbox component exists
+
+// --- UI Components (from old file) ---
+function Card({ children, className = '' }: { children: React.ReactNode, className?: string }) {
   return (
-    <div className="border rounded-lg p-4 bg-white shadow-sm">
-      <div className="text-sm text-gray-500">{title}</div>
-      {value !== undefined ? <div className="text-2xl font-semibold">{value}</div> : children}
+    <div className={`border rounded-lg p-4 bg-white shadow-sm ${className}`}>
+      {children}
     </div>
   );
 }
@@ -26,179 +28,205 @@ function ErrorMessage({ message }: { message: string }) {
 }
 
 function formatCapacity(n: number) {
-  return n?.toLocaleString('fr-FR') || '0';
+  return (n?.toLocaleString('fr-FR') || '0') + ' L';
 }
 
 export default function DashboardPage() {
   const { stations, loading, error } = useStations();
-  const [onlyWithCoords, setOnlyWithCoords] = useState(true);
 
-  // Filter stations with coordinates for map display
-  const filtered: StationWithDetails[] = useMemo(() => {
-    return stations.filter((s) =>
-      onlyWithCoords ? (s.station.Latitude || 0) !== 0 && (s.station.Longitude || 0) !== 0 : true
-    );
-  }, [stations, onlyWithCoords]);
+  // ----- Filter State -----
+  const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
+  const [selectedCommunes, setSelectedCommunes] = useState<string[]>([]);
+  const [selectedMarques, setSelectedMarques] = useState<string[]>([]);
 
-  // Stats by province for chart
-  const byProvince = useMemo(() => {
-    const map = new Map<string, number>();
-    stations.forEach((s) => {
-      const name = s.province.NomProvince?.trim() || '—';
-      map.set(name, (map.get(name) || 0) + 1);
+  // ----- Memoized Filter Options -----
+  const provinces = useMemo(() => Array.from(new Set(stations.map(s => s.province.NomProvince.trim()))).sort(), [stations]);
+  const marques = useMemo(() => Array.from(new Set(stations.map(s => s.marque.Marque.trim()))).sort(), [stations]);
+  
+  const communes = useMemo(() => {
+    if (selectedProvinces.length !== 1) return [];
+    const province = selectedProvinces[0];
+    const communeSet = new Set<string>();
+    stations.forEach(s => {
+      if (s.province.NomProvince.trim() === province) {
+        communeSet.add(s.commune.NomCommune.trim());
+      }
     });
-    return Array.from(map.entries()).map(([name, count]) => ({ name, count }));
-  }, [stations]);
+    return Array.from(communeSet).sort();
+  }, [stations, selectedProvinces]);
 
-  // Stats by marque for chart
-  const byMarque = useMemo(() => {
-    const map = new Map<string, number>();
-    stations.forEach((s) => {
-      const name = s.marque.Marque?.trim() || '—';
-      map.set(name, (map.get(name) || 0) + 1);
+  const isCommuneFilterDisabled = selectedProvinces.length !== 1;
+
+  // ----- Auto-select all on initial load -----
+  useEffect(() => {
+    if (provinces.length > 0) setSelectedProvinces(provinces);
+  }, [provinces]);
+
+  useEffect(() => {
+    if (marques.length > 0) setSelectedMarques(marques);
+  }, [marques]);
+
+  useEffect(() => {
+    if (!isCommuneFilterDisabled && communes.length > 0) {
+        setSelectedCommunes(communes);
+    }
+  }, [communes, isCommuneFilterDisabled]);
+
+  // ----- Filter Toggling Logic -----
+  const toggleSelection = (setter: React.Dispatch<React.SetStateAction<string[]>>, item: string, checked: boolean) => {
+    setter(prev => checked ? [...prev, item] : prev.filter(p => p !== item));
+  };
+  
+  const handleProvinceToggle = (p: string, checked: boolean) => {
+      setSelectedProvinces(prev => {
+          const newSelection = checked ? [...prev, p] : prev.filter(item => item !== p);
+          // When province selection changes, reset communes to avoid invalid state
+          setSelectedCommunes([]);
+          return newSelection;
+      });
+  };
+
+  // ----- Filtered Data -----
+  const filteredStations = useMemo(() => {
+    return stations.filter(s => {
+      const province = s.province.NomProvince.trim();
+      const commune = s.commune.NomCommune.trim();
+      const marque = s.marque.Marque.trim();
+
+      if (!selectedProvinces.includes(province)) return false;
+      if (!isCommuneFilterDisabled && !selectedCommunes.includes(commune)) return false;
+      if (!selectedMarques.includes(marque)) return false;
+      
+      return true;
     });
-    return Array.from(map.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count); // Sort by count descending
-  }, [stations]);
+  }, [stations, selectedProvinces, selectedCommunes, selectedMarques, isCommuneFilterDisabled]);
 
-  // Calculate fuel capacities
-  const capacities = useMemo(() => {
-    let gasoil = 0, ssp = 0;
-    stations.forEach((s) => {
+  // ----- Stats Calculations (now on filtered data) -----
+  const stats = useMemo(() => {
+    let gasoil = 0, ssp = 0, service = 0, remplissage = 0;
+    filteredStations.forEach((s) => {
+      if (s.station.Type === 'service') service++;
+      if (s.station.Type === 'remplissage') remplissage++;
       s.capacites.forEach((c) => {
         if (c.TypeCarburant === 'Gasoil') gasoil += c.CapaciteLitres || 0;
         if (c.TypeCarburant === 'SSP') ssp += c.CapaciteLitres || 0;
       });
     });
-    return { gasoil, ssp };
-  }, [stations]);
+    return { total: filteredStations.length, gasoil, ssp, service, remplissage };
+  }, [filteredStations]);
 
-  // Station types count
-  const typeStats = useMemo(() => {
-    let service = 0, remplissage = 0;
-    stations.forEach((s) => {
-      if (s.station.Type === 'service') service++;
-      if (s.station.Type === 'remplissage') remplissage++;
+  // ----- Chart Data (now on filtered data) -----
+  const chartDataByMarque = useMemo(() => {
+    const map = new Map<string, number>();
+    filteredStations.forEach((s) => {
+      const name = s.marque.Marque?.trim() || '—';
+      map.set(name, (map.get(name) || 0) + 1);
     });
-    return { service, remplissage };
-  }, [stations]);
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [filteredStations]);
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <h2 className="text-lg font-semibold mb-4 text-gray-900">Loading Dashboard...</h2>
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <h2 className="text-lg font-semibold mb-4 text-gray-900">Error Loading Dashboard</h2>
-        <ErrorMessage message={error} />
-      </div>
-    );
-  }
-
-  if (stations.length === 0) {
-    return (
-      <div className="p-6">
-        <h2 className="text-lg font-semibold mb-4 text-gray-900">No Data Found</h2>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800">No gas stations found in the normalized database.</p>
-          <p className="text-yellow-700 text-sm mt-2">If you haven't migrated your data yet, please run the migration tool first.</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="p-6"><LoadingSpinner /></div>;
+  if (error) return <div className="p-6"><ErrorMessage message={error} /></div>;
 
   return (
     <div className="p-6 space-y-6 text-gray-900">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Stations-service (Normalized)</h1>
-        <p className="text-sm text-gray-600">Vue d'ensemble avec structure normalisée.</p>
+        <h1 className="text-2xl font-bold">Stations-service Dashboard</h1>
+        <p className="text-sm text-gray-600">Vue d'ensemble avec filtres interactifs.</p>
       </div>
 
-      {/* Main Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card title="Total Stations" value={stations.length} />
-        <Card title="Stations Service" value={typeStats.service} />
-        <Card title="Stations Remplissage" value={typeStats.remplissage} />
-        <Card title="Avec Coordonnées" value={filtered.length} />
-      </div>
-
-      {/* Capacity Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card title="Capacité Gasoil (L)" value={formatCapacity(capacities.gasoil)} />
-        <Card title="Capacité SSP (L)" value={formatCapacity(capacities.ssp)} />
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="Répartition par province">
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={byProvince}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="name" 
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                  interval={0}
-                />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#3B82F6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card>
+          <div className="text-sm text-gray-500">Total stations (filtrées)</div>
+          <div className="text-2xl font-semibold">{stats.total}</div>
         </Card>
-
-        <Card title="Répartition par marque">
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={byMarque}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="name" 
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                  interval={0}
-                />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#10B981" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+        <Card>
+            <div className="text-sm text-gray-500">Capacité Gasoil</div>
+            <div className="text-xl font-semibold">{formatCapacity(stats.gasoil)}</div>
+        </Card>
+        <Card>
+            <div className="text-sm text-gray-500">Capacité SSP</div>
+            <div className="text-xl font-semibold">{formatCapacity(stats.ssp)}</div>
         </Card>
       </div>
 
-      {/* Map */}
-      <Card title="Carte (aperçu)">
-        <div className="mb-2 flex items-center gap-2">
-          <input
-            id="coordsOnly"
-            type="checkbox"
-            checked={onlyWithCoords}
-            onChange={(e) => setOnlyWithCoords(e.target.checked)}
-          />
-          <label htmlFor="coordsOnly">Afficher uniquement les stations avec coordonnées</label>
-        </div>
-        {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
-          <MapPreview stations={filtered} />
-        ) : (
-          <div className="h-full flex items-center justify-center text-gray-500 bg-gray-100 rounded">
-            <div className="text-center">
-              <p>Google Maps API key not configured</p>
-              <p className="text-sm mt-1">Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to your .env.local</p>
+      {/* Filters */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-semibold">Province</h2>
+            <div>
+              <Button variant="secondary" size="sm" onClick={() => setSelectedProvinces(provinces)}>Tout</Button>
+              <Button variant="secondary" size="sm" onClick={() => { setSelectedProvinces([]); setSelectedCommunes([]); }}>Aucun</Button>
             </div>
           </div>
-        )}
+          <div className="max-h-48 overflow-y-auto space-y-2">
+            {provinces.map(p => (
+              <div key={p} className="flex items-center"><Checkbox id={`p-${p}`} checked={selectedProvinces.includes(p)} onCheckedChange={c => handleProvinceToggle(p, !!c)} /><label htmlFor={`p-${p}`} className="ml-2">{p}</label></div>
+            ))}
+          </div>
+        </Card>
+        <Card>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className={`font-semibold ${isCommuneFilterDisabled ? 'text-gray-400' : ''}`}>Commune</h2>
+            <div>
+              <Button variant="secondary" size="sm" onClick={() => setSelectedCommunes(communes)} disabled={isCommuneFilterDisabled}>Tout</Button>
+              <Button variant="secondary" size="sm" onClick={() => setSelectedCommunes([])} disabled={isCommuneFilterDisabled}>Aucun</Button>
+            </div>
+          </div>
+          {isCommuneFilterDisabled ? <div className="text-sm text-gray-400 italic">Sélectionnez une seule province.</div> : (
+          <div className="max-h-48 overflow-y-auto space-y-2">
+            {communes.map(c => (
+              <div key={c} className="flex items-center"><Checkbox id={`c-${c}`} checked={selectedCommunes.includes(c)} onCheckedChange={s => toggleSelection(setSelectedCommunes, c, !!s)} /><label htmlFor={`c-${c}`} className="ml-2">{c}</label></div>
+            ))}
+          </div>
+          )}
+        </Card>
+        <Card>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-semibold">Marque</h2>
+            <div>
+              <Button variant="secondary" size="sm" onClick={() => setSelectedMarques(marques)}>Tout</Button>
+              <Button variant="secondary" size="sm" onClick={() => setSelectedMarques([])}>Aucun</Button>
+            </div>
+          </div>
+          <div className="max-h-48 overflow-y-auto space-y-2">
+            {marques.map(m => (
+              <div key={m} className="flex items-center"><Checkbox id={`m-${m}`} checked={selectedMarques.includes(m)} onCheckedChange={c => toggleSelection(setSelectedMarques, m, !!c)} /><label htmlFor={`m-${m}`} className="ml-2">{m}</label></div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Bar Chart */}
+      <Card>
+        <h2 className="text-lg font-semibold mb-4">Stations par Marque</h2>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartDataByMarque} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="count" fill="#3B82F6" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      {/* Map */}
+      <Card>
+        <h2 className="text-lg font-semibold mb-2">Carte des stations</h2>
+        <div className="h-96">
+          {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
+            <MapPreview stations={filteredStations} />
+          ) : (
+            <div className="h-full flex items-center justify-center text-gray-500 bg-gray-100 rounded">API Key manquant.</div>
+          )}
+        </div>
       </Card>
     </div>
   );

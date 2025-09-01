@@ -1,4 +1,4 @@
-// src/types/station.ts - Updated StationFormData type
+// src/types/station.ts - Fully Updated
 export type Station = {
   StationID: string;
   NomStation: string;
@@ -69,6 +69,14 @@ export type CapaciteStockage = {
   CapaciteLitres: number;
 };
 
+export type Analyse = {
+  AnalyseID: string;
+  StationID: string;
+  DateAnalyse: Date | null;
+  CodeAnalyse: string;
+  ResultatAnalyse: string;
+};
+
 export type StationWithDetails = {
   station: Station;
   marque: Marque;
@@ -81,6 +89,7 @@ export type StationWithDetails = {
   };
   autorisations: Autorisation[];
   capacites: CapaciteStockage[];
+  analyses: Analyse[]; // <-- ADDED THIS LINE
 };
 
 // Form data type for creating/editing stations - FIXED
@@ -120,4 +129,11 @@ export type StationFormData = {
   // Capacities
   CapaciteGasoil: string;
   CapaciteSSP: string;
+
+  // --- NEW FIELDS ADDED ---
+  // Analysis
+  DateAnalyse: string;
+  CodeAnalyse: string;
+  ResultatAnalyse: string;
+  // -------------------------
 };
