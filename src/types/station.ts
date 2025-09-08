@@ -1,11 +1,13 @@
 // src/types/station.ts - Fully Updated
 export type Station = {
   StationID: string;
+  Code: number;             
   NomStation: string;
   Adresse: string;
   Latitude: number;
   Longitude: number;
   Type: 'remplissage' | 'service';
+  Statut: 'en activité' | 'en projet' | 'en arrêt' | 'archivé';
   MarqueID: string;
   CommuneID: string;
   GerantID: string;
@@ -72,6 +74,7 @@ export type CapaciteStockage = {
 export type Analyse = {
   AnalyseID: string;
   StationID: string;
+  ProduitAnalyse: 'Gasoil' | 'SSP';
   DateAnalyse: Date | null;
   CodeAnalyse: string;
   ResultatAnalyse: string;
@@ -109,31 +112,26 @@ export type StationFormData = {
   Province: string;
   Commune: string;
   
-  // Manager - FIX: Use separate fields for first and last name
+  // Manager
   PrenomGerant: string;
   NomGerant: string;
   CINGerant: string;
   Telephone: string;
   
-  // Owner - FIX: Add missing PrenomProprietaire field
+  // Owner
   TypeProprietaire: 'Physique' | 'Morale';
   PrenomProprietaire: string;
   NomProprietaire: string;
   NomEntreprise: string;
   
-  // Authorization
-  TypeAutorisation: 'création' | 'transformation' | 'transfert' | 'changement de marques';
-  NumeroAutorisation: string;
-  DateAutorisation: string;
+  // --- MODIFIED: Autorisations is now an array ---
+  autorisations: {
+    TypeAutorisation: 'création' | 'transformation' | 'transfert' | 'changement de marques';
+    NumeroAutorisation: string;
+    DateAutorisation: string;
+  }[];
   
   // Capacities
   CapaciteGasoil: string;
   CapaciteSSP: string;
-
-  // --- NEW FIELDS ADDED ---
-  // Analysis
-  DateAnalyse: string;
-  CodeAnalyse: string;
-  ResultatAnalyse: string;
-  // -------------------------
 };

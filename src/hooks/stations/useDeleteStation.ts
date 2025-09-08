@@ -9,7 +9,6 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-
 import { COLLECTIONS } from '@/lib/firebase/collections';
 
 export function useDeleteStation() {
@@ -40,6 +39,12 @@ export function useDeleteStation() {
       capacitesSnapshot.docs.forEach(d => {
         batch.delete(d.ref);
       });
+
+      // Delete related analyses (these belong only to this station)
+      const analysesSnap = await getDocs(
+        query(collection(db, COLLECTIONS.ANALYSES), where('StationID', '==', stationId))
+      );
+      analysesSnap.forEach(d => batch.delete(d.ref));
 
       // Delete the station document itself. This removes the link to the Proprietor,
       // but does not delete the Proprietor itself.

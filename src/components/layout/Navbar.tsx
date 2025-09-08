@@ -2,7 +2,7 @@
 'use client';
 
 import { User } from 'firebase/auth';
-import  Button  from '@/components/ui/Button';
+import { Button } from '@/components/ui/Button';
 
 interface NavbarProps {
   user: User | null;

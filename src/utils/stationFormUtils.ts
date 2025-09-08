@@ -1,16 +1,14 @@
+
 // src/utils/stationFormUtils.ts
 import { StationWithDetails, StationFormData } from '@/types/station';
 
 export function stationWithDetailsToFormData(stationData: StationWithDetails): StationFormData {
   const { station, marque, commune, province, gerant, proprietaire, autorisations, capacites } = stationData;
-  
-  // Get the first authorization (if any)
-  const firstAuth = autorisations?.[0];
-  
+
   // Get capacities by type
   const gasoilCapacity = capacites?.find(c => c.TypeCarburant === 'Gasoil');
   const sspCapacity = capacites?.find(c => c.TypeCarburant === 'SSP');
-  
+
   // Format date for HTML input
   const formatDateForInput = (date: Date | null): string => {
     if (!date) return '';
@@ -21,7 +19,7 @@ export function stationWithDetailsToFormData(stationData: StationWithDetails): S
   };
 
   return {
-    id: station.id,
+    id: station.StationID,
     NomStation: station.NomStation || '',
     Adresse: station.Adresse || '',
     Latitude: station.Latitude ? station.Latitude.toString() : '',
@@ -33,10 +31,10 @@ export function stationWithDetailsToFormData(stationData: StationWithDetails): S
     RaisonSociale: marque?.RaisonSociale || '',
     
     // Location
-    Province: province?.NomProvince || province?.Province || '',
-    Commune: commune?.NomCommune || commune?.Commune || '',
+    Province: province?.NomProvince || '',
+    Commune: commune?.NomCommune || '',
     
-    // Manager - FIX: Use the correct field names
+    // Manager
     PrenomGerant: gerant?.PrenomGerant || '',
     NomGerant: gerant?.NomGerant || '',
     CINGerant: gerant?.CINGerant || '',
@@ -54,13 +52,15 @@ export function stationWithDetailsToFormData(stationData: StationWithDetails): S
       ? (proprietaire.details as any)?.NomEntreprise || ''
       : '',
     
-    // Authorization
-    TypeAutorisation: firstAuth?.TypeAutorisation || 'création',
-    NumeroAutorisation: firstAuth?.NumeroAutorisation || '',
-    DateAutorisation: formatDateForInput(firstAuth?.DateAutorisation || null),
+    // Authorizations
+    autorisations: autorisations?.map(a => ({
+      TypeAutorisation: a.TypeAutorisation,
+      NumeroAutorisation: a.NumeroAutorisation,
+      DateAutorisation: formatDateForInput(a.DateAutorisation)
+    })) ?? [{ TypeAutorisation: 'création', NumeroAutorisation: '', DateAutorisation: '' }],
     
     // Capacities
     CapaciteGasoil: gasoilCapacity?.CapaciteLitres?.toString() || '',
-    CapaciteSSP: sspCapacity?.CapaciteLitres?.toString() || '',
+    CapaciteSSP: sspCapacity?.CapaciteLitres?.toString() || ''
   };
 }

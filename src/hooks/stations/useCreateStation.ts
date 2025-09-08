@@ -7,6 +7,7 @@ import {
   getDocs,
   doc,
   writeBatch,
+  runTransaction,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
@@ -35,8 +36,27 @@ import {
   autorisationConverter,
   capaciteConverter,
 } from '@/lib/firebase/converters';
-
 import { COLLECTIONS } from '@/lib/firebase/collections';
+
+// Helper to atomically get the next station code (serial)
+async function getNextStationCode(): Promise<number> {
+  const { doc, increment } = await import('firebase/firestore');
+  return await runTransaction(db, async (tx) => {
+    const counterRef = doc(db, 'meta', 'counters');
+    const snap = await tx.get(counterRef);
+    const base = 1000;
+    if (!snap.exists()) {
+      const next = base + 1;
+      tx.set(counterRef, { stationCode: next });
+      return next;
+    } else {
+      const current = (snap.data() as any).stationCode ?? base;
+      const next = current + 1;
+      tx.update(counterRef, { stationCode: next });
+      return next;
+    }
+  });
+}
 
 export function useCreateStation() {
   const [loading, setLoading] = useState(false);
@@ -201,6 +221,8 @@ export function useCreateStation() {
         collection(db, COLLECTIONS.STATIONS).withConverter(stationConverter)
       );
       const station: Station = {
+        Code: await getNextStationCode(),
+        Statut: 'en activité',
         StationID: stationRef.id,
         NomStation: formData.NomStation.trim(),
         Adresse: formData.Adresse.trim(),
@@ -216,20 +238,18 @@ export function useCreateStation() {
       const stationId = stationRef.id;
 
       // 7. Autorisation
-      if (formData.NumeroAutorisation.trim()) {
-        const autoRef = doc(
-          collection(db, COLLECTIONS.AUTORISATIONS).withConverter(autorisationConverter)
-        );
-        const autorisation: Autorisation = {
-          AutorisationID: autoRef.id,
-          StationID: stationId,
-          TypeAutorisation: formData.TypeAutorisation,
-          NumeroAutorisation: formData.NumeroAutorisation.trim(),
-          DateAutorisation: formData.DateAutorisation
-            ? new Date(formData.DateAutorisation)
-            : null,
-        };
-        batch.set(autoRef, autorisation);
+      for (const autoData of formData.autorisations) {
+        if (autoData.NumeroAutorisation.trim()) {
+          const autoRef = doc(collection(db, COLLECTIONS.AUTORISATIONS).withConverter(autorisationConverter));
+          const autorisation: Autorisation = {
+            AutorisationID: autoRef.id,
+            StationID: stationId,
+            TypeAutorisation: autoData.TypeAutorisation,
+            NumeroAutorisation: autoData.NumeroAutorisation.trim(),
+            DateAutorisation: autoData.DateAutorisation ? new Date(autoData.DateAutorisation) : null,
+          };
+          batch.set(autoRef, autorisation);
+        }
       }
 
       // 8. Capacites

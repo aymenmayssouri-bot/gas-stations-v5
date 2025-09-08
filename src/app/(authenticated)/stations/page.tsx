@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation"; // 1. Import useRouter
 import { useStations } from "@/hooks/stations/useStations";
 import { useDeleteStation } from "@/hooks/stations/useDeleteStation";
 import StationsTable from "@/components/stations/StationsTable";
@@ -18,17 +19,18 @@ import { ErrorMessage } from "@/components/ui/ErrorMessage";
 export default function StationsPage() {
   const { stations, loading, error, refetch } = useStations();
   const { deleteStation, loading: deleting } = useDeleteStation();
-  
+  const router = useRouter(); // 2. Initialize the router
+
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingStation, setEditingStation] = useState<StationWithDetails | undefined>(undefined);
-  
+
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Delete confirmation state
   const [stationToDelete, setStationToDelete] = useState<StationWithDetails | undefined>(undefined);
-  
+
   // Table state
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "NomStation", direction: "asc" });
   const pageSize = 10;
@@ -37,7 +39,7 @@ export default function StationsPage() {
   // Filter stations based on search query
   const filteredStations = useMemo(() => {
     if (!searchQuery.trim()) return stations;
-    
+
     const query = searchQuery.toLowerCase();
     return stations.filter((station) => {
       return (
@@ -70,7 +72,7 @@ export default function StationsPage() {
           aValue = a.marque?.Marque || '';
           bValue = b.marque?.Marque || '';
           break;
-        case "NomProvince": // FIXED: Use correct key
+        case "NomProvince":
           aValue = a.province?.NomProvince || '';
           bValue = b.province?.NomProvince || '';
           break;
@@ -82,12 +84,10 @@ export default function StationsPage() {
           return 0;
       }
 
-      // Handle null/undefined values
       if (aValue == null && bValue == null) return 0;
       if (aValue == null) return sortConfig.direction === "asc" ? 1 : -1;
       if (bValue == null) return sortConfig.direction === "asc" ? -1 : 1;
 
-      // Convert to string for comparison
       const aStr = String(aValue).toLowerCase();
       const bStr = String(bValue).toLowerCase();
 
@@ -102,10 +102,9 @@ export default function StationsPage() {
   const totalPages = Math.max(1, Math.ceil(sortedStations.length / pageSize));
   const validCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
 
-  // Reset to page 1 when search changes
   useEffect(() => {
-  setCurrentPage(1);
-}, [searchQuery]);
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(totalPages, page)));
@@ -113,7 +112,12 @@ export default function StationsPage() {
 
   const handleSortChange = (config: SortConfig) => {
     setSortConfig(config);
-    setCurrentPage(1); // Reset to first page when sorting
+    setCurrentPage(1);
+  };
+
+  // 3. Define the handler function for double-clicking a row
+  const handleRowDoubleClick = (stationId: string) => {
+    router.push(`/stations/${stationId}`);
   };
 
   const handleAddNew = () => {
@@ -131,11 +135,10 @@ export default function StationsPage() {
   };
 
   const confirmDelete = async () => {
-    if (!stationToDelete?.station.id) return;
-    
+    if (!stationToDelete?.station.StationID) return;
     try {
-      await deleteStation(stationToDelete.station.id);
-      await refetch(); // Refresh the data
+      await deleteStation(stationToDelete.station.StationID);
+      await refetch();
       setStationToDelete(undefined);
     } catch (error) {
       console.error('Failed to delete station:', error);
@@ -145,7 +148,7 @@ export default function StationsPage() {
   const handleFormSaved = async () => {
     setShowForm(false);
     setEditingStation(undefined);
-    await refetch(); // Refresh the data
+    await refetch();
   };
 
   const handleRefresh = async () => {
@@ -178,7 +181,6 @@ export default function StationsPage() {
         <p className="text-sm text-gray-600">Gestion des stations avec structure normalisée.</p>
       </div>
 
-      {/* Table Actions */}
       <TableActions
         onAddNew={handleAddNew}
         searchQuery={searchQuery}
@@ -187,7 +189,6 @@ export default function StationsPage() {
         onRefresh={handleRefresh}
       />
 
-      {/* Table or Empty State */}
       {showEmptyState ? (
         <EmptyState
           hasSearch={hasSearch}
@@ -205,10 +206,10 @@ export default function StationsPage() {
           totalPages={totalPages}
           onPageChange={handlePageChange}
           pageSize={pageSize}
+          onRowDoubleClick={handleRowDoubleClick} // 4. Pass the handler to the table
         />
       )}
 
-      {/* Add/Edit Form Modal */}
       <Modal
         isOpen={showForm}
         onClose={() => {
@@ -225,7 +226,6 @@ export default function StationsPage() {
         />
       </Modal>
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={!!stationToDelete}
         onClose={() => setStationToDelete(undefined)}

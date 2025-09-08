@@ -1,5 +1,4 @@
 // src/types/table.ts
-
 /**
  * Configuration for sorting in tables
  */
@@ -9,12 +8,21 @@ export interface SortConfig {
 }
 
 /**
+ * Configuration for filtering in tables
+ */
+export interface FilterConfig {
+  key: string;             // the column key to filter
+  value: string;           // the filter value
+}
+
+/**
  * Metadata for each table column
  */
 export interface TableColumn {
   key: string;             // unique identifier (e.g. "NomStation")
   label: string;           // display name in header
   sortable?: boolean;      // can the column be sorted
+  filterable?: boolean;    // can the column be filtered
 }
 
 /**

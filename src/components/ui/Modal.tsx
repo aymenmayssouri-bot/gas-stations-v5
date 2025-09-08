@@ -1,4 +1,4 @@
-// Modal.tsx
+// src/components/ui/Modal.tsx
 'use client';
 
 import { useEffect } from 'react';
@@ -89,7 +89,7 @@ export function Modal({
           )}
 
           {/* Content */}
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6">
+          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 text-gray-900">
             {children}
           </div>
         </div>

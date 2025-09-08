@@ -21,6 +21,7 @@ import {
   ProprietaireMorale,
   Autorisation,
   CapaciteStockage,
+  Analyse, // ADD THIS IMPORT
 } from '@/types/station';
 import {
   stationConverter,
@@ -33,20 +34,10 @@ import {
   proprietaireMoraleConverter,
   autorisationConverter,
   capaciteConverter,
+  analyseConverter, // ADD THIS IMPORT
 } from '@/lib/firebase/converters';
 
-const COLLECTIONS = {
-  STATIONS: 'stations',
-  MARQUES: 'marques',
-  COMMUNES: 'communes',
-  PROVINCES: 'provinces',
-  GERANTS: 'gerants',
-  PROPRIETAIRES: 'proprietaires',
-  PROPRIETAIRES_PHYSIQUES: 'proprietaires_physiques',
-  PROPRIETAIRES_MORALES: 'proprietaires_morales',
-  AUTORISATIONS: 'autorisations',
-  CAPACITES_STOCKAGE: 'capacites_stockage',
-} as const;
+import { COLLECTIONS } from '@/lib/firebase/collections';
 
 export function useStations() {
   const [stations, setStations] = useState<StationWithDetails[]>([]);
@@ -67,7 +58,7 @@ export function useStations() {
       const results: StationWithDetails[] = [];
 
       for (const station of baseStations) {
-        // ✅ Parallel fetches with converters
+        // ✅ Parallel fetches with converters - ADD analysesSnap
         const [
           marqueDoc,
           communeDoc,
@@ -75,6 +66,7 @@ export function useStations() {
           proprietaireBaseDoc,
           autorisationsSnap,
           capacitesSnap,
+          analysesSnap, 
         ] = await Promise.all([
           station.MarqueID
             ? getDoc(
@@ -105,6 +97,12 @@ export function useStations() {
           getDocs(
             query(
               collection(db, COLLECTIONS.CAPACITES_STOCKAGE).withConverter(capaciteConverter),
+              where('StationID', '==', station.StationID)
+            )
+          ),
+          getDocs( 
+            query(
+              collection(db, COLLECTIONS.ANALYSES).withConverter(analyseConverter),
               where('StationID', '==', station.StationID)
             )
           ),
@@ -148,7 +146,6 @@ export function useStations() {
         let proprietaire: StationWithDetails['proprietaire'] = undefined;
         if (proprietaireBaseDoc?.exists()) {
           const base = proprietaireBaseDoc.data();
-
           if (base.TypeProprietaire === 'Physique') {
             const physSnap = await getDocs(
               query(
@@ -182,6 +179,13 @@ export function useStations() {
 
         const capacites: CapaciteStockage[] = capacitesSnap.docs.map((d) => d.data());
 
+        // ✅ ADD ANALYSES PROCESSING
+        const analyses: Analyse[] = analysesSnap.docs.map((d) => ({
+          ...d.data(),
+          // Fix Firestore Timestamp -> Date
+          DateAnalyse: (d.data().DateAnalyse as any)?.toDate?.() || null,
+        }));
+
         results.push({
           station,
           marque,
@@ -191,6 +195,7 @@ export function useStations() {
           proprietaire,
           autorisations,
           capacites,
+          analyses, 
         });
       }
 

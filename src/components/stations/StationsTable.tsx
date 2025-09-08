@@ -1,11 +1,12 @@
-// src/components/stations/StationsTable.tsx - FIXED VERSION
+// src/components/stations/StationsTable.tsx - COMBINED VERSION
 'use client';
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { StationWithDetails } from '@/types/station';
-import { SortConfig } from '@/types/table';
+import { SortConfig, FilterConfig } from '@/types/table';
 import TableHeader from './TableHeader';
 import TablePagination from './TablePagination';
+import { getProprietaireName } from '@/utils/format';
 
 export interface StationsTableProps {
   stations: StationWithDetails[];
@@ -17,11 +18,38 @@ export interface StationsTableProps {
   totalPages: number;
   onPageChange: (page: number) => void;
   pageSize?: number;
+  onRowDoubleClick: (stationId: string) => void;
 }
 
 function safeFullName(first?: string, last?: string) {
   return `${first || ''} ${last || ''}`.trim() || '-';
 }
+
+// Helper function to get cell value based on filter key
+const getCellValue = (station: StationWithDetails, key: string): string => {
+  switch (key) {
+    case 'Code':
+      return String(station.station.Code || '');
+    case 'NomStation':
+      return station.station.NomStation || '';
+    case 'Adresse':
+      return station.station.Adresse || '';
+    case 'NomCommune':
+      return station.commune?.NomCommune || '';
+    case 'NomProvince':
+      return station.province?.NomProvince || '';
+    case 'Marque':
+      return station.marque?.Marque || '';
+    case 'Gerant':
+      return safeFullName(station.gerant?.PrenomGerant, station.gerant?.NomGerant) || '';
+    case 'Type':
+      return station.station.Type || '';
+    case 'Status':
+      return station.station.Statut || '';
+    default:
+      return '';
+  }
+};
 
 export default function StationsTable({
   stations,
@@ -33,55 +61,262 @@ export default function StationsTable({
   totalPages,
   onPageChange,
   pageSize = 10,
+  onRowDoubleClick,
 }: StationsTableProps) {
+  const [filters, setFilters] = useState<FilterConfig[]>([]);
+
+  // Get unique filter values for each column
+  const filterValues = useMemo(() => {
+    return {
+      Code: [...new Set(stations.map(s => String(s.station.Code || '')))].sort(),
+      NomStation: [...new Set(stations.map(s => s.station.NomStation || ''))].sort(),
+      Adresse: [...new Set(stations.map(s => s.station.Adresse || ''))].sort(),
+      NomCommune: [...new Set(stations.map(s => s.commune?.NomCommune || ''))].sort(),
+      NomProvince: [...new Set(stations.map(s => s.province?.NomProvince || ''))].sort(),
+      Marque: [...new Set(stations.map(s => s.marque?.Marque || ''))].sort(),
+      Gerant: [...new Set(stations.map(s => 
+        safeFullName(s.gerant?.PrenomGerant, s.gerant?.NomGerant) || ''
+      ))].sort(),
+      Type: [...new Set(stations.map(s => s.station.Type || ''))].sort(),
+      Status: [...new Set(stations.map(s => s.station.Statut || ''))].sort(),
+    };
+  }, [stations]);
+
+  const handleFilterChange = (key: string, value: string) => {
+    const newFilters = filters.filter(filter => filter.key !== key);
+    if (value) {
+      newFilters.push({ key, value });
+    }
+    setFilters(newFilters);
+    // Reset to first page when filtering
+    onPageChange(1);
+  };
+
+  const getFilterValue = (key: string) => {
+    return filters.find(filter => filter.key === key)?.value || '';
+  };
+
+  // Apply filters to the stations
+  const filteredStations = useMemo(() => {
+    if (filters.length === 0) return stations;
+
+    return stations.filter(station => {
+      return filters.every(filter => {
+        const value = getCellValue(station, filter.key).toLowerCase();
+        return value.includes(filter.value.toLowerCase());
+      });
+    });
+  }, [stations, filters]);
+
+  // Sort filtered stations
+  const sortedStations = useMemo(() => {
+    const sorted = [...filteredStations];
+    sorted.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortConfig.key) {
+        case 'Code':
+          aValue = String(a.station.Code || '');
+          bValue = String(b.station.Code || '');
+          break;
+        case 'NomStation':
+          aValue = a.station.NomStation;
+          bValue = b.station.NomStation;
+          break;
+        case 'Adresse':
+          aValue = a.station.Adresse;
+          bValue = b.station.Adresse;
+          break;
+        case 'NomCommune':
+          aValue = a.commune?.NomCommune || '';
+          bValue = b.commune?.NomCommune || '';
+          break;
+        case 'NomProvince':
+          aValue = a.province?.NomProvince || '';
+          bValue = b.province?.NomProvince || '';
+          break;
+        case 'Marque':
+          aValue = a.marque?.Marque || '';
+          bValue = b.marque?.Marque || '';
+          break;
+        case 'Gerant':
+          aValue = safeFullName(a.gerant?.PrenomGerant, a.gerant?.NomGerant);
+          bValue = safeFullName(b.gerant?.PrenomGerant, b.gerant?.NomGerant);
+          break;
+        case 'Type':
+          aValue = a.station.Type;
+          bValue = b.station.Type;
+          break;
+        case 'Status':
+          aValue = a.station.Statut;
+          bValue = b.station.Statut;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return sortConfig.direction === 'asc' ? 1 : -1;
+      if (bValue == null) return sortConfig.direction === 'asc' ? -1 : 1;
+
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+
+      if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredStations, sortConfig]);
+
+  // Calculate pagination based on filtered data
+  const actualTotalPages = Math.max(1, Math.ceil(sortedStations.length / pageSize));
+  const actualCurrentPage = Math.min(currentPage, actualTotalPages);
+
   // Client-side slice for pagination
-  const start = (currentPage - 1) * pageSize;
-  const visible = stations.slice(start, start + pageSize);
+  const start = (actualCurrentPage - 1) * pageSize;
+  const visible = sortedStations.slice(start, start + pageSize);
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setFilters([]);
+  };
 
   return (
-    <div className="w-full bg-white rounded-lg shadow-sm border">
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
+    <div className="w-full bg-white rounded-lg shadow-sm border overflow-hidden">
+      {/* Filter status bar */}
+      {filters.length > 0 && (
+        <div className="px-4 py-2 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-blue-700">Filtres appliqués:</span>
+            {filters.map((filter, index) => (
+              <span
+                key={index}
+                className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+              >
+                {filter.key}: {filter.value}
+                <button
+                  onClick={() => handleFilterChange(filter.key, '')}
+                  className="ml-1 text-blue-600 hover:text-blue-800"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <button
+            onClick={clearAllFilters}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            Effacer tous les filtres
+          </button>
+        </div>
+      )}
+
+      <div className="overflow-x-auto w-full" style={{ minWidth: '1600px' }}>
+        <table className="w-full" style={{ tableLayout: 'fixed' }}>
           <thead className="bg-gray-50 border-b text-gray-900">
             <tr>
               <TableHeader
-                label="Station"
-                sortKey="NomStation"
+                label="Code"
+                sortKey="Code"
                 sortConfig={sortConfig}
                 onSortChange={onSortChange}
-              />
-              <TableHeader
-                label="Adresse"
-                sortKey="Adresse"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-              />
-              <TableHeader
-                label="Commune"
-                sortKey="NomCommune"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-              />
-              {/* FIXED: Use correct sort key for Province */}
-              <TableHeader
-                label="Province"
-                sortKey="NomProvince"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
+                filterValues={filterValues.Code}
+                selectedFilterValue={getFilterValue('Code')}
+                onFilterChange={handleFilterChange}
+                width="80px"
               />
               <TableHeader
                 label="Marque"
                 sortKey="Marque"
                 sortConfig={sortConfig}
                 onSortChange={onSortChange}
+                filterValues={filterValues.Marque}
+                selectedFilterValue={getFilterValue('Marque')}
+                onFilterChange={handleFilterChange}
+                width="120px"
               />
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
+              <TableHeader
+                label="Nom Station"
+                sortKey="NomStation"
+                sortConfig={sortConfig}
+                onSortChange={onSortChange}
+                filterValues={filterValues.NomStation}
+                selectedFilterValue={getFilterValue('NomStation')}
+                onFilterChange={handleFilterChange}
+                width="150px"
+              />
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '150px' }}>
+                Propriétaire
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '150px' }}>
                 Gérant
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
-                Type
+              <TableHeader
+                label="Adresse"
+                sortKey="Adresse"
+                sortConfig={sortConfig}
+                onSortChange={onSortChange}
+                filterValues={filterValues.Adresse}
+                selectedFilterValue={getFilterValue('Adresse')}
+                onFilterChange={handleFilterChange}
+                width="200px"
+              />
+              <TableHeader
+                label="Province"
+                sortKey="NomProvince"
+                sortConfig={sortConfig}
+                onSortChange={onSortChange}
+                filterValues={filterValues.NomProvince}
+                selectedFilterValue={getFilterValue('NomProvince')}
+                onFilterChange={handleFilterChange}
+                width="120px"
+              />
+              <TableHeader
+                label="Commune"
+                sortKey="NomCommune"
+                sortConfig={sortConfig}
+                onSortChange={onSortChange}
+                filterValues={filterValues.NomCommune}
+                selectedFilterValue={getFilterValue('NomCommune')}
+                onFilterChange={handleFilterChange}
+                width="120px"
+              />
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '100px' }}>
+                Latitude
               </th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '100px' }}>
+                Longitude
+              </th>
+              <TableHeader
+                label="Type"
+                sortKey="Type"
+                sortConfig={sortConfig}
+                onSortChange={onSortChange}
+                filterValues={filterValues.Type}
+                selectedFilterValue={getFilterValue('Type')}
+                onFilterChange={handleFilterChange}
+                width="100px"
+              />
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '100px' }}>
+                Cap. SSP (L)
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '100px' }}>
+                Cap. Gasoil (L)
+              </th>
+              <TableHeader
+                label="Statut"
+                sortKey="Status"
+                sortConfig={sortConfig}
+                onSortChange={onSortChange}
+                filterValues={filterValues.Status}
+                selectedFilterValue={getFilterValue('Status')}
+                onFilterChange={handleFilterChange}
+                width="100px"
+              />
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '120px' }}>
                 Actions
               </th>
             </tr>
@@ -90,64 +325,110 @@ export default function StationsTable({
           <tbody className="divide-y divide-gray-200"> 
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">
-                  Aucune station trouvée.
+                <td colSpan={16} className="px-4 py-8 text-center text-sm text-gray-500">
+                  {filters.length > 0 ? (
+                    <div>
+                      <p>Aucune station ne correspond aux filtres appliqués.</p>
+                      <button
+                        onClick={clearAllFilters}
+                        className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        Effacer tous les filtres
+                      </button>
+                    </div>
+                  ) : (
+                    'Aucune station trouvée.'
+                  )}
                 </td>
               </tr>
             ) : (
-              visible.map((s) => (
-                <tr key={s.station.StationID} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{s.station.NomStation || '-'}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-sm text-gray-900">{s.station.Adresse || '-'}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-sm text-gray-900">{s.commune?.NomCommune || '-'}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-sm text-gray-900">{s.province?.NomProvince || '-'}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-sm text-gray-900">{s.marque?.Marque || '-'}</div>
-                    {s.marque?.RaisonSociale && (
-                      <div className="text-xs text-gray-500">{s.marque.RaisonSociale}</div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-sm text-gray-900">
-                      {safeFullName(s.gerant?.PrenomGerant, s.gerant?.NomGerant)}
-                    </div>
-                    {s.gerant?.CINGerant && (
-                      <div className="text-xs text-gray-500">CIN: {s.gerant.CINGerant}</div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      s.station.Type === 'service' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {s.station.Type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right space-x-2">
-                    <button 
-                      onClick={() => onEdit(s)} 
-                      className="text-blue-600 hover:text-blue-900 text-sm font-medium"
-                    >
-                      Modifier
-                    </button>
-                    <button 
-                      onClick={() => onDelete(s)} 
-                      className="text-red-600 hover:text-red-900 text-sm font-medium"
-                    >
-                      Supprimer
-                    </button>
-                  </td>
-                </tr>
-              ))
+              visible.map((s) => {
+                const capSSP = s.capacites.filter(c => c.TypeCarburant === 'SSP').reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0);
+                const capGasoil = s.capacites.filter(c => c.TypeCarburant === 'Gasoil').reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0);
+                
+                return (
+                  <tr 
+                    key={s.station.StationID} 
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onDoubleClick={() => onRowDoubleClick(s.station.StationID)}
+                  >
+                    <td className="px-4 py-3 truncate" title={s.station.Code?.toString()}>
+                      <div className="text-sm text-gray-900">{s.station.Code || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-900 truncate" title={s.marque?.Marque}>{s.marque?.Marque || '-'}</div>
+                      {s.marque?.RaisonSociale && (
+                        <div className="text-xs text-gray-500 truncate" title={s.marque.RaisonSociale}>{s.marque.RaisonSociale}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900 truncate" title={s.station.NomStation}>{s.station.NomStation || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-900 truncate" title={getProprietaireName(s)}>{getProprietaireName(s)}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-900 truncate">
+                        {safeFullName(s.gerant?.PrenomGerant, s.gerant?.NomGerant)}
+                      </div>
+                      {s.gerant && (
+                        <div className="text-xs text-gray-500 truncate">
+                          {[s.gerant.CINGerant].filter(Boolean) || '-'}
+                          <br />
+                          {[s.gerant.Telephone].filter(Boolean) || '-'}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-900 truncate" title={s.station.Adresse}>{s.station.Adresse || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-900 truncate" title={s.province?.NomProvince}>{s.province?.NomProvince || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-900 truncate" title={s.commune?.NomCommune}>{s.commune?.NomCommune || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-900 truncate" title={s.station.Latitude?.toString()}>{s.station.Latitude || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-900 truncate" title={s.station.Longitude?.toString()}>{s.station.Longitude || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        s.station.Type === 'service' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {s.station.Type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-900">{capSSP || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-900">{capGasoil || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-900 truncate" title={s.station.Statut}>{s.station.Statut || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3 text-right space-x-2">
+                      <button 
+                        onClick={() => onEdit(s)} 
+                        className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                      >
+                        Modifier
+                      </button>
+                      <button 
+                        onClick={() => onDelete(s)} 
+                        className="text-red-600 hover:text-red-900 text-sm font-medium"
+                      >
+                        Supprimer
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -157,8 +438,8 @@ export default function StationsTable({
       {visible.length > 0 && (
         <div className="px-4 py-3 border-t border-gray-200">
           <TablePagination 
-            currentPage={currentPage} 
-            totalPages={totalPages} 
+            currentPage={actualCurrentPage} 
+            totalPages={actualTotalPages} 
             onPageChange={onPageChange} 
           />
         </div>

@@ -1,62 +1,82 @@
-// src/hooks/stationData/useAutorisationCRUD.ts
-import { useCallback, useState } from 'react';
-import { collection, doc, addDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import { Autorisation } from '@/types/station';
+import { useCallback, useEffect, useState } from "react";
+import { collection, doc, addDoc, updateDoc, deleteDoc, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
+import { Autorisation } from "@/types/station";
+import { autorisationConverter } from "@/lib/firebase/converters";
 
-const COLLECTIONS = {
-  AUTORISATIONS: 'autorisations',
-};
+const COLLECTION = "autorisations";
 
 export function useAutorisationCRUD() {
+  const [autorisations, setAutorisations] = useState<Autorisation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createAutorisation = useCallback(async (data: Omit<Autorisation, 'id'>) => {
+  const fetchAutorisations = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      await addDoc(collection(db, COLLECTIONS.AUTORISATIONS), {
-        ...data,
-        DateAutorisation: data.DateAutorisation ? Timestamp.fromDate(data.DateAutorisation) : null,
-      });
+      const snapshot = await getDocs(
+        collection(db, COLLECTION).withConverter(autorisationConverter)
+      );
+      setAutorisations(snapshot.docs.map((d) => d.data()));
     } catch (err: any) {
-      setError(`Failed to create autorisation: ${err.message}`);
-      throw err;
+      setError(`Failed to fetch autorisations: ${err.message}`);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const updateAutorisation = useCallback(async (id: string, data: Partial<Autorisation>) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const updateData = {
-        ...data,
-        DateAutorisation: data.DateAutorisation ? Timestamp.fromDate(data.DateAutorisation) : null,
-      };
-      await updateDoc(doc(db, COLLECTIONS.AUTORISATIONS, id), updateData);
-    } catch (err: any) {
-      setError(`Failed to update autorisation: ${err.message}`);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  useEffect(() => {
+    fetchAutorisations();
+  }, [fetchAutorisations]);
 
-  const deleteAutorisation = useCallback(async (id: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      await deleteDoc(doc(db, COLLECTIONS.AUTORISATIONS, id));
-    } catch (err: any) {
-      setError(`Failed to delete autorisation: ${err.message}`);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const createAutorisation = useCallback(
+    async (data: Omit<Autorisation, "AutorisationID">) => {
+      setLoading(true);
+      try {
+        await addDoc(collection(db, COLLECTION).withConverter(autorisationConverter), data);
+        await fetchAutorisations();
+      } catch (err: any) {
+        setError(`Failed to create autorisation: ${err.message}`);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchAutorisations]
+  );
 
-  return { createAutorisation, updateAutorisation, deleteAutorisation, loading, error };
+  const updateAutorisation = useCallback(
+    async (id: string, data: Partial<Autorisation>) => {
+      setLoading(true);
+      try {
+        await updateDoc(doc(db, COLLECTION, id).withConverter(autorisationConverter), data);
+        await fetchAutorisations();
+      } catch (err: any) {
+        setError(`Failed to update autorisation: ${err.message}`);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchAutorisations]
+  );
+
+  const deleteAutorisation = useCallback(
+    async (id: string) => {
+      setLoading(true);
+      try {
+        await deleteDoc(doc(db, COLLECTION, id).withConverter(autorisationConverter));
+        await fetchAutorisations();
+      } catch (err: any) {
+        setError(`Failed to delete autorisation: ${err.message}`);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchAutorisations]
+  );
+
+  return { autorisations, loading, error, createAutorisation, updateAutorisation, deleteAutorisation };
 }

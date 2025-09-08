@@ -1,7 +1,7 @@
 // ConfirmDialog.tsx
 'use client';
 
-import  Button  from './Button';
+import  { Button }  from './Button';
 
 interface ConfirmDialogProps {
   isOpen: boolean;

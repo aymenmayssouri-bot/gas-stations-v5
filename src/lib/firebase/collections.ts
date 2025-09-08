@@ -17,6 +17,7 @@ export const COLLECTIONS = {
   PROPRIETAIRES_MORALES: 'proprietaires_morales',
   AUTORISATIONS: 'autorisations',
   CAPACITES_STOCKAGE: 'capacites_stockage',
+  ANALYSES: 'analyses',
 } as const;
 
 // This type ensures that if you ever mistype a key, TypeScript will catch it.

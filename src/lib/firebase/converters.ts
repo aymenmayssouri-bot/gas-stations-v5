@@ -9,7 +9,8 @@ import {
   ProprietairePhysique,
   ProprietaireMorale,
   Autorisation,
-  CapaciteStockage
+  CapaciteStockage,
+  Analyse
 } from "@/types/station";
 
 // Generic helper
@@ -40,3 +41,4 @@ export const proprietairePhysiqueConverter = createConverter<ProprietairePhysiqu
 export const proprietaireMoraleConverter = createConverter<ProprietaireMorale>("ProprietaireID");
 export const autorisationConverter = createConverter<Autorisation>("AutorisationID");
 export const capaciteConverter = createConverter<CapaciteStockage>("CapaciteID");
+export const analyseConverter = createConverter<Analyse>("AnalyseID");
