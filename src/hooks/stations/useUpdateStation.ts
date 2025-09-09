@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import {
   doc,
+  getDoc,
   getDocs,
   writeBatch,
   collection,
@@ -46,6 +47,15 @@ export function useUpdateStation() {
     const batch = writeBatch(db);
 
     try {
+      // Fetch current station to get existing ProprietaireID
+      const stationRef = doc(db, COLLECTIONS.STATIONS, stationId).withConverter(stationConverter);
+      const stationSnap = await getDoc(stationRef);
+      if (!stationSnap.exists()) {
+        throw new Error('Station not found');
+      }
+      const currentStation = stationSnap.data();
+      const oldProprietaireId = currentStation?.ProprietaireID || '';
+
       /** -------------------------------
        * 1. Update Marque
        * ------------------------------ */
@@ -148,41 +158,145 @@ export function useUpdateStation() {
       /** -------------------------------
        * 4. Update Proprietaire
        * ------------------------------ */
-      // This logic finds or creates the main 'proprietaire' entry, then its details.
-      // Note: This simplified logic might create duplicate owners if names change.
-      // A more robust system would involve passing an owner ID.
-      let proprietaireId: string;
-      const newPropRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES).withConverter(proprietaireConverter));
-      const newProp: Proprietaire = {
-        ProprietaireID: newPropRef.id,
-        TypeProprietaire: formData.TypeProprietaire,
-      };
-      batch.set(newPropRef, newProp);
-      proprietaireId = newPropRef.id;
+      let proprietaireId: string | undefined;
+      const proprietaireName =
+        formData.TypeProprietaire === 'Physique'
+          ? formData.NomProprietaire.trim()
+          : formData.NomEntreprise.trim();
 
-      if (formData.TypeProprietaire === 'Physique') {
-        const physRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES).withConverter(proprietairePhysiqueConverter));
-        const physData: ProprietairePhysique = {
-          ProprietaireID: proprietaireId,
-          NomProprietaire: formData.NomProprietaire.trim(),
-          PrenomProprietaire: formData.PrenomProprietaire.trim(),
-        };
-        batch.set(physRef, physData);
+      if (!proprietaireName) {
+        // Unlink owner if no name provided
+        proprietaireId = '';
+        // Delete old owner details if they exist
+        if (oldProprietaireId) {
+          const oldPropRef = doc(db, COLLECTIONS.PROPRIETAIRES, oldProprietaireId).withConverter(proprietaireConverter);
+          const oldPropSnap = await getDoc(oldPropRef);
+          if (oldPropSnap.exists()) {
+            const oldType = oldPropSnap.data().TypeProprietaire;
+            const oldDetailsCollection = oldType === 'Physique' ? COLLECTIONS.PROPRIETAIRES_PHYSIQUES : COLLECTIONS.PROPRIETAIRES_MORALES;
+            const oldDetailsQuery = query(
+              collection(db, oldDetailsCollection),
+              where('ProprietaireID', '==', oldProprietaireId)
+            );
+            const oldDetailsSnap = await getDocs(oldDetailsQuery);
+            oldDetailsSnap.forEach((docSnap) => batch.delete(docSnap.ref));
+            batch.delete(oldPropRef);
+          }
+        }
       } else {
-        const morRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES).withConverter(proprietaireMoraleConverter));
-        const morData: ProprietaireMorale = {
-          ProprietaireID: proprietaireId,
-          NomEntreprise: formData.NomEntreprise.trim(),
-        };
-        batch.set(morRef, morData);
+        // Check if existing ProprietaireID can be reused
+        let isTypeChanged = false;
+        let oldType: 'Physique' | 'Morale' | undefined;
+
+        if (oldProprietaireId) {
+          const oldPropRef = doc(db, COLLECTIONS.PROPRIETAIRES, oldProprietaireId).withConverter(proprietaireConverter);
+          const oldPropSnap = await getDoc(oldPropRef);
+          if (oldPropSnap.exists()) {
+            oldType = oldPropSnap.data().TypeProprietaire;
+            isTypeChanged = oldType !== formData.TypeProprietaire;
+
+            // Update type if changed
+            if (isTypeChanged) {
+              batch.update(oldPropRef, { TypeProprietaire: formData.TypeProprietaire });
+            }
+            proprietaireId = oldProprietaireId;
+
+            // Delete old details if type changed
+            if (isTypeChanged && oldType) {
+              const oldDetailsCollection = oldType === 'Physique' ? COLLECTIONS.PROPRIETAIRES_PHYSIQUES : COLLECTIONS.PROPRIETAIRES_MORALES;
+              const oldDetailsQuery = query(
+                collection(db, oldDetailsCollection),
+                where('ProprietaireID', '==', oldProprietaireId)
+              );
+              const oldDetailsSnap = await getDocs(oldDetailsQuery);
+              oldDetailsSnap.forEach((docSnap) => batch.delete(docSnap.ref));
+            }
+
+            // Update or create details
+            if (formData.TypeProprietaire === 'Physique') {
+              const detailsQuery = query(
+                collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES).withConverter(proprietairePhysiqueConverter),
+                where('ProprietaireID', '==', proprietaireId)
+              );
+              const detailsSnap = await getDocs(detailsQuery);
+
+              if (!detailsSnap.empty && !isTypeChanged) {
+                // Update existing Physique details
+                const detailsRef = detailsSnap.docs[0].ref;
+                batch.update(detailsRef, {
+                  NomProprietaire: formData.NomProprietaire.trim(),
+                  PrenomProprietaire: formData.PrenomProprietaire.trim(),
+                });
+              } else {
+                // Create new Physique details
+                const newDetailsRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES)).withConverter(proprietairePhysiqueConverter);
+                const physData: ProprietairePhysique = {
+                  ProprietaireID: proprietaireId,
+                  NomProprietaire: formData.NomProprietaire.trim(),
+                  PrenomProprietaire: formData.PrenomProprietaire.trim(),
+                };
+                batch.set(newDetailsRef, physData);
+              }
+            } else {
+              const detailsQuery = query(
+                collection(db, COLLECTIONS.PROPRIETAIRES_MORALES).withConverter(proprietaireMoraleConverter),
+                where('ProprietaireID', '==', proprietaireId)
+              );
+              const detailsSnap = await getDocs(detailsQuery);
+
+              if (!detailsSnap.empty && !isTypeChanged) {
+                // Update existing Morale details
+                const detailsRef = detailsSnap.docs[0].ref;
+                batch.update(detailsRef, {
+                  NomEntreprise: formData.NomEntreprise.trim(),
+                });
+              } else {
+                // Create new Morale details
+                const newDetailsRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES)).withConverter(proprietaireMoraleConverter);
+                const morData: ProprietaireMorale = {
+                  ProprietaireID: proprietaireId,
+                  NomEntreprise: formData.NomEntreprise.trim(),
+                };
+                batch.set(newDetailsRef, morData);
+              }
+            }
+          }
+        }
+
+        // Create new proprietaire only if no existing one
+        if (!proprietaireId) {
+          const newPropRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES).withConverter(proprietaireConverter));
+          const newProp: Proprietaire = {
+            ProprietaireID: newPropRef.id,
+            TypeProprietaire: formData.TypeProprietaire,
+          };
+          batch.set(newPropRef, newProp);
+          proprietaireId = newPropRef.id;
+
+          // Create details
+          if (formData.TypeProprietaire === 'Physique') {
+            const newDetailsRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES)).withConverter(proprietairePhysiqueConverter);
+            const physData: ProprietairePhysique = {
+              ProprietaireID: proprietaireId,
+              NomProprietaire: formData.NomProprietaire.trim(),
+              PrenomProprietaire: formData.PrenomProprietaire.trim(),
+            };
+            batch.set(newDetailsRef, physData);
+          } else {
+            const newDetailsRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES)).withConverter(proprietaireMoraleConverter);
+            const morData: ProprietaireMorale = {
+              ProprietaireID: proprietaireId,
+              NomEntreprise: formData.NomEntreprise.trim(),
+            };
+            batch.set(newDetailsRef, morData);
+          }
+        }
       }
 
       /** -------------------------------
        * 5. Update Station
        * ------------------------------ */
-      const stationRef = doc(db, COLLECTIONS.STATIONS, stationId);
-      
-      const stationUpdateData = {
+      const stationUpdateData: any = {
         NomStation: formData.NomStation.trim(),
         Adresse: formData.Adresse.trim(),
         Latitude: formData.Latitude ? parseFloat(formData.Latitude) : 0,
@@ -191,10 +305,10 @@ export function useUpdateStation() {
         MarqueID: marqueId,
         CommuneID: communeId,
         GerantID: gerantId,
-        ProprietaireID: proprietaireId,
+        ProprietaireID: proprietaireId || '',
       };
 
-      batch.update(stationRef.withConverter(stationConverter), stationUpdateData);
+      batch.update(stationRef, stationUpdateData);
 
       /** -------------------------------
        * 6. Update Autorisations

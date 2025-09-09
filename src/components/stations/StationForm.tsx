@@ -200,6 +200,9 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
             value={form.CINGerant} 
             onChange={(e) => updateField('CINGerant', e.target.value)} 
             error={errors.CINGerant}
+            readOnly={mode === 'edit'} // CHANGE: Make CINGerant read-only in edit mode
+            disabled={mode === 'edit'}
+            className={mode === 'edit' ? 'bg-gray-100 cursor-not-allowed' : ''}
           />
           <Input 
             label="Téléphone" 

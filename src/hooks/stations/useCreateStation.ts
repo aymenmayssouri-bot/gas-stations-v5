@@ -1,4 +1,3 @@
-// src/hooks/stations/useCreateStation.ts
 import { useCallback, useState } from 'react';
 import {
   collection,
@@ -8,7 +7,6 @@ import {
   doc,
   writeBatch,
   runTransaction,
-  Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import {
@@ -183,36 +181,73 @@ export function useCreateStation() {
           ? formData.NomProprietaire.trim()
           : formData.NomEntreprise.trim();
 
-      if (proprietaireName) {
-        const propRef = doc(
-          collection(db, COLLECTIONS.PROPRIETAIRES).withConverter(proprietaireConverter)
-        );
-        const proprietaire: Proprietaire = {
-          ProprietaireID: propRef.id,
-          TypeProprietaire: formData.TypeProprietaire,
-        };
-        batch.set(propRef, proprietaire);
-        proprietaireId = propRef.id;
-
+      if (
+        proprietaireName &&
+        (formData.TypeProprietaire !== 'Physique' || formData.PrenomProprietaire.trim())
+      ) {
+        // Check for existing owner
+        let existingPropId: string | undefined;
         if (formData.TypeProprietaire === 'Physique') {
-          const physRef = doc(
-            collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES).withConverter(proprietairePhysiqueConverter)
+          const physQuery = query(
+            collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES).withConverter(proprietairePhysiqueConverter),
+            where('NomProprietaire', '==', formData.NomProprietaire.trim()),
+            where('PrenomProprietaire', '==', formData.PrenomProprietaire.trim())
           );
-          const physique: ProprietairePhysique = {
-            ProprietaireID: proprietaireId,
-            NomProprietaire: formData.NomProprietaire.trim(),
-            PrenomProprietaire: formData.PrenomProprietaire.trim(),
-          };
-          batch.set(physRef, physique);
+          const physSnap = await getDocs(physQuery);
+          if (!physSnap.empty) {
+            existingPropId = physSnap.docs[0].data().ProprietaireID;
+          }
         } else {
-          const morRef = doc(
-            collection(db, COLLECTIONS.PROPRIETAIRES_MORALES).withConverter(proprietaireMoraleConverter)
+          const morQuery = query(
+            collection(db, COLLECTIONS.PROPRIETAIRES_MORALES).withConverter(proprietaireMoraleConverter),
+            where('NomEntreprise', '==', formData.NomEntreprise.trim())
           );
-          const morale: ProprietaireMorale = {
+          const morSnap = await getDocs(morQuery);
+          if (!morSnap.empty) {
+            existingPropId = morSnap.docs[0].data().ProprietaireID;
+          }
+        }
+
+        // Use existing ProprietaireID or create new
+        proprietaireId = existingPropId;
+        if (!proprietaireId) {
+          const propRef = doc(
+            collection(db, COLLECTIONS.PROPRIETAIRES).withConverter(proprietaireConverter)
+          );
+          proprietaireId = propRef.id;
+          const proprietaire: Proprietaire = {
             ProprietaireID: proprietaireId,
-            NomEntreprise: formData.NomEntreprise.trim(),
+            TypeProprietaire: formData.TypeProprietaire,
           };
-          batch.set(morRef, morale);
+          console.log('Creating proprietaire with ID:', proprietaireId);
+          batch.set(propRef, proprietaire);
+
+          if (formData.TypeProprietaire === 'Physique') {
+            const physRef = doc(
+              collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES).withConverter(proprietairePhysiqueConverter)
+            );
+            const physique: ProprietairePhysique = {
+              ProprietaireID: proprietaireId,
+              NomProprietaire: formData.NomProprietaire.trim(),
+              PrenomProprietaire: formData.PrenomProprietaire.trim(),
+            };
+            console.log('Creating proprietaire_physique with ID:', proprietaireId);
+            batch.set(physRef, physique);
+          } else {
+            const morRef = doc(
+              collection(db, COLLECTIONS.PROPRIETAIRES_MORALES).withConverter(proprietaireMoraleConverter)
+            );
+            const morale: ProprietaireMorale = {
+              ProprietaireID: proprietaireId,
+              NomEntreprise: formData.NomEntreprise.trim(),
+            };
+            console.log('Creating proprietaire_morale with ID:', proprietaireId, 'NomEntreprise:', formData.NomEntreprise.trim());
+            batch.set(morRef, morale);
+          }
+        } else {
+          // Update existing owner if needed
+          const propRef = doc(db, COLLECTIONS.PROPRIETAIRES, proprietaireId).withConverter(proprietaireConverter);
+          batch.set(propRef, { ProprietaireID: proprietaireId, TypeProprietaire: formData.TypeProprietaire }, { merge: true });
         }
       }
 
@@ -234,6 +269,7 @@ export function useCreateStation() {
         GerantID: gerantId,
         ProprietaireID: proprietaireId || '',
       };
+      console.log('Creating station with ProprietaireID:', proprietaireId);
       batch.set(stationRef, station);
       const stationId = stationRef.id;
 
@@ -279,7 +315,9 @@ export function useCreateStation() {
         batch.set(capRef, cap);
       }
 
+      console.log('Committing batch for station creation');
       await batch.commit();
+      console.log('Batch committed successfully');
     } catch (err: any) {
       console.error('Error creating station:', err);
       setError(`Failed to create station: ${err.message}`);
