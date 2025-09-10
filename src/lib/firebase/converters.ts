@@ -1,4 +1,4 @@
-import { FirestoreDataConverter, QueryDocumentSnapshot } from "firebase/firestore";
+import { FirestoreDataConverter, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
 import { 
   Station, 
   Marque, 
@@ -91,4 +91,25 @@ export const provinceConverter = createConverter<Province>("ProvinceID");
 export const gerantConverter = createConverter<Gerant>("GerantID");
 export const autorisationConverter = createConverter<Autorisation>("AutorisationID");
 export const capaciteConverter = createConverter<CapaciteStockage>("CapaciteID");
-export const analyseConverter = createConverter<Analyse>("AnalyseID");
+export const analyseConverter: FirestoreDataConverter<Analyse> = {
+  toFirestore: (analyse: Analyse) => {
+    return {
+      ...analyse,
+      DateAnalyse: analyse.DateAnalyse instanceof Date ? 
+        Timestamp.fromDate(analyse.DateAnalyse) : 
+        analyse.DateAnalyse
+    };
+  },
+  fromFirestore: (
+    snapshot: QueryDocumentSnapshot,
+    options
+  ): Analyse => {
+    const data = snapshot.data(options);
+    return {
+      ...data,
+      DateAnalyse: data.DateAnalyse instanceof Timestamp ? 
+        data.DateAnalyse.toDate() : 
+        data.DateAnalyse
+    } as Analyse;
+  },
+};

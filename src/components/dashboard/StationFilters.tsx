@@ -24,7 +24,11 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
   const provinces = useMemo(() => Array.from(new Set(stations.map(s => s.province.NomProvince.trim()))).sort(), [stations]);
   const marques = useMemo(() => Array.from(new Set(stations.map(s => s.marque.Marque.trim()))).sort(), [stations]);
   
-  const { years, filterStationsByAnalysis } = useAnalysesIndex();
+  // Get all station IDs for analyses fetching
+  const stationIds = useMemo(() => stations.map(s => s.station.StationID), [stations]);
+  
+  // Pass all station IDs to useAnalysesIndex
+  const { years, filterStationsByAnalysis } = useAnalysesIndex(''); // Pass empty string for initial load
 
   const communes = useMemo(() => {
     if (selectedProvinces.length !== 1) return [];

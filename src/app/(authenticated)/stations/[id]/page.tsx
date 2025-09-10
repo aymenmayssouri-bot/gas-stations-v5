@@ -10,6 +10,8 @@ import dynamic from 'next/dynamic';
 import { formatDate, getProprietaireName } from '@/utils/format';
 import { StationForm } from '@/components/stations/StationForm';
 import { Modal } from '@/components/ui/Modal';
+import { useAnalysesIndex } from '@/hooks/useStationData/useAnalysesIndex';
+import AnalyseTable from '@/components/stations/AnalyseTable';
 
 // Dynamically import Map (to avoid SSR issues)
 const GoogleMap = dynamic(() => import('@/components/dashboard/MapPreview'), { ssr: false });
@@ -17,10 +19,14 @@ const GoogleMap = dynamic(() => import('@/components/dashboard/MapPreview'), { s
 export default function StationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { stations, loading, error, refetch } = useStations();
+  const { stations, loading: stationsLoading, error: stationsError, refetch } = useStations();
+  const { analyses, loading: analysesLoading, error: analysesError } = useAnalysesIndex(id);
   const [station, setStation] = useState<StationWithDetails | null>(null);
   const [showForm, setShowForm] = useState(false); // State for modal
   const [editingStation, setEditingStation] = useState<StationWithDetails | undefined>(undefined); // State for editing station
+
+  // Get analyses for current station
+  const stationAnalyses = analyses || [];
 
   useEffect(() => {
     if (stations.length > 0) {
@@ -39,10 +45,15 @@ export default function StationDetailPage() {
   const handleFormSaved = async () => {
     setShowForm(false);
     setEditingStation(undefined);
-    await refetch(); // Refresh data after saving
+    await refetch(); // Now refetch is properly defined
   };
 
-  if (loading) {
+  useEffect(() => {
+    console.log('Current station:', station); // Debug log
+    console.log('Current analyses:', analyses); // Debug log
+  }, [station, analyses]);
+
+  if (stationsLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <LoadingSpinner />
@@ -50,10 +61,10 @@ export default function StationDetailPage() {
     );
   }
 
-  if (error) {
+  if (stationsError) {
     return (
       <div className="p-6">
-        <ErrorMessage message={error} />
+        <ErrorMessage message={stationsError} />
       </div>
     );
   }
@@ -133,33 +144,12 @@ export default function StationDetailPage() {
 
       {/* Analyses Table */}
       <Card>
-        <h2 className="text-lg font-semibold mb-2">Dernières Analyses</h2>
-        {station.analyses?.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-500">Code Analyse</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-500">Date d'Analyse</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-500">Produit</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-500">Résultat</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {station.analyses.map((an) => (
-                  <tr key={an.AnalyseID}>
-                    <td className="px-4 py-2">{an.CodeAnalyse}</td>
-                    <td className="px-4 py-2">{formatDate(an.DateAnalyse)}</td>
-                    <td className="px-4 py-2">{an.ProduitAnalyse}</td>
-                    <td className="px-4 py-2">{an.ResultatAnalyse}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">Aucune analyse enregistrée pour cette station.</p>
-        )}
+        <h2 className="text-lg font-semibold mb-4">Analyses</h2>
+        <AnalyseTable 
+          analyses={stationAnalyses}
+          loading={analysesLoading}
+          error={analysesError}
+        />
       </Card>
 
       {/* Map */}
