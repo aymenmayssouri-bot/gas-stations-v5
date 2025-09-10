@@ -1,16 +1,42 @@
+// src/components/stations/AnalyseTable.tsx
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Analyse } from '@/types/station';
 import { formatDate } from '@/utils/format';
+import { useAnalyseCRUD } from '@/hooks/useStationData/useAnalyseCRUD';
+import { Button } from '@/components/ui/Button';
 
 interface AnalyseTableProps {
   analyses: Analyse[];
   loading?: boolean;
   error?: string | null;
+  onEdit?: (analyse: Analyse) => void;
+  onRefresh?: () => void;
 }
 
-export default function AnalyseTable({ analyses, loading, error }: AnalyseTableProps) {
+export default function AnalyseTable({ analyses, loading, error, onEdit, onRefresh }: AnalyseTableProps) {
+  const { deleteAnalyse, loading: deleting } = useAnalyseCRUD();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (analyse: Analyse) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'analyse "${analyse.CodeAnalyse}" ?`)) {
+      return;
+    }
+
+    setDeletingId(analyse.AnalyseID);
+    
+    try {
+      await deleteAnalyse(analyse.AnalyseID);
+      onRefresh?.(); // Refresh the analyses after deletion
+    } catch (err) {
+      console.error('Error deleting analyse:', err);
+      alert('Erreur lors de la suppression de l\'analyse');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-4">Chargement des analyses...</div>;
   }
@@ -40,6 +66,9 @@ export default function AnalyseTable({ analyses, loading, error }: AnalyseTableP
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Résultat
             </th>
+            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
@@ -62,12 +91,31 @@ export default function AnalyseTable({ analyses, loading, error }: AnalyseTableP
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                  analyse.ResultatAnalyse === 'Positive' 
+                  analyse.ResultatAnalyse === 'Conforme' 
                     ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
+                    : analyse.ResultatAnalyse === 'Non Conforme'
+                    ? 'bg-red-100 text-red-800'
+                    : 'bg-yellow-100 text-yellow-800'
                 }`}>
                   {analyse.ResultatAnalyse}
                 </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                {onEdit && (
+                  <button
+                    onClick={() => onEdit(analyse)}
+                    className="text-blue-600 hover:text-blue-900"
+                  >
+                    Modifier
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDelete(analyse)}
+                  disabled={deletingId === analyse.AnalyseID}
+                  className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                >
+                  {deletingId === analyse.AnalyseID ? 'Suppression...' : 'Supprimer'}
+                </button>
               </td>
             </tr>
           ))}

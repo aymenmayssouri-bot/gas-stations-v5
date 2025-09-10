@@ -3,7 +3,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { StationWithDetails } from '@/types/station';
+import { StationWithDetails, Analyse } from '@/types/station';
 import { useStations } from '@/hooks/stations/useStations';
 import { Card, Button, LoadingSpinner, ErrorMessage } from '@/components/ui';
 import dynamic from 'next/dynamic';
@@ -12,6 +12,7 @@ import { StationForm } from '@/components/stations/StationForm';
 import { Modal } from '@/components/ui/Modal';
 import { useAnalysesIndex } from '@/hooks/useStationData/useAnalysesIndex';
 import AnalyseTable from '@/components/stations/AnalyseTable';
+import AnalyseForm from '@/components/stations/AnalyseForm';
 
 // Dynamically import Map (to avoid SSR issues)
 const GoogleMap = dynamic(() => import('@/components/dashboard/MapPreview'), { ssr: false });
@@ -20,10 +21,18 @@ export default function StationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { stations, loading: stationsLoading, error: stationsError, refetch } = useStations();
-  const { analyses, loading: analysesLoading, error: analysesError } = useAnalysesIndex(id);
+  const { analyses, loading: analysesLoading, error: analysesError, refetch: refetchAnalyses } = useAnalysesIndex(id);
+  
   const [station, setStation] = useState<StationWithDetails | null>(null);
-  const [showForm, setShowForm] = useState(false); // State for modal
-  const [editingStation, setEditingStation] = useState<StationWithDetails | undefined>(undefined); // State for editing station
+  
+  // Modal states
+  const [showStationForm, setShowStationForm] = useState(false);
+  const [editingStation, setEditingStation] = useState<StationWithDetails | undefined>(undefined);
+  
+  // Analysis modal states
+  const [showAnalyseForm, setShowAnalyseForm] = useState(false);
+  const [analyseFormMode, setAnalyseFormMode] = useState<'create' | 'edit'>('create');
+  const [editingAnalyse, setEditingAnalyse] = useState<Analyse | undefined>(undefined);
 
   // Get analyses for current station
   const stationAnalyses = analyses || [];
@@ -35,22 +44,49 @@ export default function StationDetailPage() {
     }
   }, [stations, id]);
 
-  // Handler to open the edit form
-  const handleEdit = () => {
+  // Handler to open the station edit form
+  const handleEditStation = () => {
     setEditingStation(station || undefined);
-    setShowForm(true);
+    setShowStationForm(true);
   };
 
-  // Handler for form save
-  const handleFormSaved = async () => {
-    setShowForm(false);
+  // Handler for station form save
+  const handleStationFormSaved = async () => {
+    setShowStationForm(false);
     setEditingStation(undefined);
-    await refetch(); // Now refetch is properly defined
+    await refetch();
+  };
+
+  // Handler to open analysis create form
+  const handleCreateAnalyse = () => {
+    setAnalyseFormMode('create');
+    setEditingAnalyse(undefined);
+    setShowAnalyseForm(true);
+  };
+
+  // Handler to open analysis edit form
+  const handleEditAnalyse = (analyse: Analyse) => {
+    setAnalyseFormMode('edit');
+    setEditingAnalyse(analyse);
+    setShowAnalyseForm(true);
+  };
+
+  // Handler for analysis form save
+  const handleAnalyseFormSaved = async () => {
+    setShowAnalyseForm(false);
+    setEditingAnalyse(undefined);
+    await refetchAnalyses();
+  };
+
+  // Handler for analysis form cancel
+  const handleAnalyseFormCancel = () => {
+    setShowAnalyseForm(false);
+    setEditingAnalyse(undefined);
   };
 
   useEffect(() => {
-    console.log('Current station:', station); // Debug log
-    console.log('Current analyses:', analyses); // Debug log
+    console.log('Current station:', station);
+    console.log('Current analyses:', analyses);
   }, [station, analyses]);
 
   if (stationsLoading) {
@@ -82,9 +118,9 @@ export default function StationDetailPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">{station.station.NomStation}</h1>
         <div className="space-x-2">
-          <Button onClick={handleEdit}>Modifier la station</Button>
-          <Button onClick={() => router.push(`/stations/${id}/analyses`)} variant="secondary">
-            Gérer les analyses
+          <Button onClick={handleEditStation}>Modifier la station</Button>
+          <Button onClick={handleCreateAnalyse} variant="secondary">
+            Ajouter une analyse
           </Button>
         </div>
       </div>
@@ -144,11 +180,18 @@ export default function StationDetailPage() {
 
       {/* Analyses Table */}
       <Card>
-        <h2 className="text-lg font-semibold mb-4">Analyses</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">Analyses</h2>
+          <Button onClick={handleCreateAnalyse} size="sm">
+            Nouvelle Analyse
+          </Button>
+        </div>
         <AnalyseTable 
           analyses={stationAnalyses}
           loading={analysesLoading}
           error={analysesError}
+          onEdit={handleEditAnalyse}
+          onRefresh={refetchAnalyses}
         />
       </Card>
 
@@ -162,11 +205,11 @@ export default function StationDetailPage() {
         </Card>
       )}
 
-      {/* Edit Modal */}
+      {/* Station Edit Modal */}
       <Modal
-        isOpen={showForm}
+        isOpen={showStationForm}
         onClose={() => {
-          setShowForm(false);
+          setShowStationForm(false);
           setEditingStation(undefined);
         }}
         title="Modifier la station"
@@ -175,7 +218,23 @@ export default function StationDetailPage() {
         <StationForm
           mode="edit"
           station={editingStation}
-          onSaved={handleFormSaved}
+          onSaved={handleStationFormSaved}
+        />
+      </Modal>
+
+      {/* Analysis Form Modal */}
+      <Modal
+        isOpen={showAnalyseForm}
+        onClose={handleAnalyseFormCancel}
+        title={analyseFormMode === 'create' ? 'Nouvelle Analyse' : 'Modifier l\'Analyse'}
+        size="lg"
+      >
+        <AnalyseForm
+          mode={analyseFormMode}
+          stationId={id}
+          analyse={editingAnalyse}
+          onSaved={handleAnalyseFormSaved}
+          onCancel={handleAnalyseFormCancel}
         />
       </Modal>
     </div>

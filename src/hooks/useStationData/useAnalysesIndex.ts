@@ -10,25 +10,44 @@ import { analyseConverter } from '@/lib/firebase/converters';
 
 type Status = 'all' | 'analysed' | 'not-analysed';
 
-export function useAnalysesIndex(stationId: string) {
+export function useAnalysesIndex(stationId: string | string[]) {
   const [analyses, setAnalyses] = useState<Analyse[]>([]);
   const [years, setYears] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchAnalyses = useCallback(async () => {
-    console.log('Fetching analyses for station:', stationId);
+    console.log('Fetching analyses for station(s):', stationId);
     setLoading(true);
     setError(null);
 
     try {
       const analysesRef = collection(db, COLLECTIONS.ANALYSES).withConverter(analyseConverter);
       
-      const q = query(
-        analysesRef,
-        where('StationID', '==', stationId),
-        orderBy('DateAnalyse', 'desc')
-      );
+      let q;
+      
+      // Handle different cases: single station, multiple stations, or all stations
+      if (Array.isArray(stationId) && stationId.length > 0) {
+        // Multiple specific stations
+        q = query(
+          analysesRef,
+          where('StationID', 'in', stationId.slice(0, 10)), // Firestore 'in' limit is 10
+          orderBy('DateAnalyse', 'desc')
+        );
+      } else if (typeof stationId === 'string' && stationId !== '') {
+        // Single station
+        q = query(
+          analysesRef,
+          where('StationID', '==', stationId),
+          orderBy('DateAnalyse', 'desc')
+        );
+      } else {
+        // All analyses (when stationId is empty string or empty array)
+        q = query(
+          analysesRef,
+          orderBy('DateAnalyse', 'desc')
+        );
+      }
 
       const snapshot = await getDocs(q);
       
@@ -36,6 +55,7 @@ export function useAnalysesIndex(stationId: string) {
         const data = doc.data();
         return {
           ...data,
+          AnalyseID: doc.id,
           DateAnalyse: data.DateAnalyse instanceof Timestamp ? 
             data.DateAnalyse.toDate() : 
             data.DateAnalyse
@@ -69,12 +89,14 @@ export function useAnalysesIndex(stationId: string) {
       year: number | 'all'
     ) => {
       return stations.filter(s => {
-        const hasAnalyses = analyses.length > 0;
+        // Find analyses for this specific station
+        const stationAnalyses = analyses.filter(a => a.StationID === s.station.StationID);
+        const hasAnalyses = stationAnalyses.length > 0;
 
         if (status === 'analysed') {
           if (!hasAnalyses) return false;
           if (year !== 'all') {
-            return analyses.some(
+            return stationAnalyses.some(
               a => a.DateAnalyse && 
               new Date(a.DateAnalyse).getFullYear() === year
             );
@@ -90,10 +112,9 @@ export function useAnalysesIndex(stationId: string) {
   );
 
   useEffect(() => {
-    if (stationId) {
-      fetchAnalyses();
-    }
-  }, [stationId, fetchAnalyses]);
+    // Always fetch when the hook is called, regardless of stationId value
+    fetchAnalyses();
+  }, [fetchAnalyses]);
 
   return { 
     analyses, 
@@ -101,6 +122,6 @@ export function useAnalysesIndex(stationId: string) {
     loading, 
     error, 
     refetch: fetchAnalyses,
-    filterStationsByAnalysis // Add this to the return object
+    filterStationsByAnalysis
   };
 }

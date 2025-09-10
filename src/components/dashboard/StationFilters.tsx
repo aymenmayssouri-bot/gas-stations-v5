@@ -27,8 +27,8 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
   // Get all station IDs for analyses fetching
   const stationIds = useMemo(() => stations.map(s => s.station.StationID), [stations]);
   
-  // Pass all station IDs to useAnalysesIndex
-  const { years, filterStationsByAnalysis } = useAnalysesIndex(''); // Pass empty string for initial load
+  // Fetch all analyses for filtering (pass empty string to get all analyses)
+  const { years, filterStationsByAnalysis, loading: analysesLoading } = useAnalysesIndex('');
 
   const communes = useMemo(() => {
     if (selectedProvinces.length !== 1) return [];
@@ -74,8 +74,12 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
 
   // ----- Filtered Data Calculation -----
   const filteredStations = useMemo(() => {
-    let filtered = filterStationsByAnalysis(stations, analysisStatus, analysisYear);
+    // First apply analysis filtering if not loading
+    let filtered = !analysesLoading ? 
+      filterStationsByAnalysis(stations, analysisStatus, analysisYear) : 
+      stations;
 
+    // Then apply other filters
     return filtered.filter(s => {
       const province = s.province.NomProvince.trim();
       const commune = s.commune.NomCommune.trim();
@@ -90,7 +94,7 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
       
       return true;
     });
-  }, [stations, selectedProvinces, selectedCommunes, selectedMarques, isCommuneFilterDisabled, analysisStatus, analysisYear, filterStationsByAnalysis, selectedStatuses]);
+  }, [stations, selectedProvinces, selectedCommunes, selectedMarques, isCommuneFilterDisabled, analysisStatus, analysisYear, filterStationsByAnalysis, selectedStatuses, analysesLoading]);
 
   // ----- Inform Parent of Changes -----
   useEffect(() => {
@@ -155,6 +159,7 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
               setAnalysisStatus(e.target.value as 'all' | 'analysed' | 'not-analysed')
             }
             className="border p-2 rounded w-full"
+            disabled={analysesLoading}
           >
             <option value="all">Toutes</option>
             <option value="analysed">Stations Analysées</option>
@@ -171,6 +176,7 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
                 )
               }
               className="border p-2 rounded w-full"
+              disabled={analysesLoading}
             >
               <option value="all">Toutes les années</option>
               {years.map((y) => (
@@ -179,6 +185,10 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
                 </option>
               ))}
             </select>
+          )}
+          
+          {analysesLoading && (
+            <div className="text-sm text-gray-500">Chargement des analyses...</div>
           )}
         </div>
       </Card>
