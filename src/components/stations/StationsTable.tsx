@@ -1,7 +1,7 @@
-// src/components/stations/StationsTable.tsx - COMBINED VERSION
+// src\components\stations\StationsTable.tsx
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { StationWithDetails } from '@/types/station';
 import { SortConfig, FilterConfig } from '@/types/table';
 import TableHeader from './TableHeader';
@@ -19,13 +19,14 @@ export interface StationsTableProps {
   onPageChange: (page: number) => void;
   pageSize?: number;
   onRowDoubleClick: (stationId: string) => void;
+  onExport: (filteredStations: StationWithDetails[]) => void;
+  triggerExport: boolean;
 }
 
 function safeFullName(first?: string, last?: string) {
   return `${first || ''} ${last || ''}`.trim() || '-';
 }
 
-// Helper function to get cell value based on filter key
 const getCellValue = (station: StationWithDetails, key: string): string => {
   switch (key) {
     case 'Code':
@@ -46,6 +47,10 @@ const getCellValue = (station: StationWithDetails, key: string): string => {
       return station.station.Type || '';
     case 'Status':
       return station.station.Statut || '';
+    case 'TypeGerance':
+      return station.station.TypeGerance || '';
+    case 'Statut':
+      return station.station.Statut || '';
     default:
       return '';
   }
@@ -62,10 +67,11 @@ export default function StationsTable({
   onPageChange,
   pageSize = 10,
   onRowDoubleClick,
+  onExport,
+  triggerExport,
 }: StationsTableProps) {
   const [filters, setFilters] = useState<FilterConfig[]>([]);
 
-  // Get unique filter values for each column
   const filterValues = useMemo(() => {
     return {
       Code: [...new Set(stations.map(s => String(s.station.Code || '')))].sort(),
@@ -78,7 +84,8 @@ export default function StationsTable({
         safeFullName(s.gerant?.PrenomGerant, s.gerant?.NomGerant) || ''
       ))].sort(),
       Type: [...new Set(stations.map(s => s.station.Type || ''))].sort(),
-      Status: [...new Set(stations.map(s => s.station.Statut || ''))].sort(),
+      Statut: [...new Set(stations.map(s => s.station.Statut || ''))].sort(),
+      TypeGerance: [...new Set(stations.map(s => s.station?.TypeGerance || ''))].sort(),
     };
   }, [stations]);
 
@@ -88,7 +95,6 @@ export default function StationsTable({
       newFilters.push({ key, value });
     }
     setFilters(newFilters);
-    // Reset to first page when filtering
     onPageChange(1);
   };
 
@@ -96,7 +102,6 @@ export default function StationsTable({
     return filters.find(filter => filter.key === key)?.value || '';
   };
 
-  // Apply filters to the stations
   const filteredStations = useMemo(() => {
     if (filters.length === 0) return stations;
 
@@ -108,7 +113,6 @@ export default function StationsTable({
     });
   }, [stations, filters]);
 
-  // Sort filtered stations
   const sortedStations = useMemo(() => {
     const sorted = [...filteredStations];
     sorted.sort((a, b) => {
@@ -152,6 +156,10 @@ export default function StationsTable({
           aValue = a.station.Statut;
           bValue = b.station.Statut;
           break;
+        case 'TypeGerance':
+          aValue = a.station.TypeGerance;
+          bValue = b.station.TypeGerance;
+          break;
         default:
           return 0;
       }
@@ -170,22 +178,34 @@ export default function StationsTable({
     return sorted;
   }, [filteredStations, sortConfig]);
 
-  // Calculate pagination based on filtered data
   const actualTotalPages = Math.max(1, Math.ceil(sortedStations.length / pageSize));
   const actualCurrentPage = Math.min(currentPage, actualTotalPages);
 
-  // Client-side slice for pagination
   const start = (actualCurrentPage - 1) * pageSize;
   const visible = sortedStations.slice(start, start + pageSize);
 
-  // Clear all filters
   const clearAllFilters = () => {
     setFilters([]);
   };
 
+  useEffect(() => {
+    if (triggerExport) {
+      onExport(sortedStations);
+    }
+  }, [triggerExport, onExport, sortedStations]);
+
+  const filteredCommunes = useMemo(() => {
+    const selectedProvince = getFilterValue('NomProvince');
+    if (!selectedProvince) return filterValues.NomCommune;
+    
+    return filterValues.NomCommune.filter(commune => {
+      const station = stations.find(s => s.commune.NomCommune === commune);
+      return station?.province.NomProvince === selectedProvince;
+    });
+  }, [stations, filterValues.NomCommune, getFilterValue]);
+
   return (
     <div className="w-full bg-white rounded-lg shadow-sm border overflow-hidden">
-      {/* Filter status bar */}
       {filters.length > 0 && (
         <div className="px-4 py-2 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -279,7 +299,7 @@ export default function StationsTable({
                 sortKey="NomCommune"
                 sortConfig={sortConfig}
                 onSortChange={onSortChange}
-                filterValues={filterValues.NomCommune}
+                filterValues={filteredCommunes}
                 selectedFilterValue={getFilterValue('NomCommune')}
                 onFilterChange={handleFilterChange}
                 width="120px"
@@ -301,20 +321,30 @@ export default function StationsTable({
                 width="100px"
               />
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '100px' }}>
-                Cap. SSP (L)
+                Cap. SSP (T)
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '100px' }}>
-                Cap. Gasoil (L)
+                Cap. Gasoil (T)
               </th>
               <TableHeader
                 label="Statut"
                 sortKey="Status"
                 sortConfig={sortConfig}
                 onSortChange={onSortChange}
-                filterValues={filterValues.Status}
+                filterValues={filterValues.Statut}
                 selectedFilterValue={getFilterValue('Status')}
                 onFilterChange={handleFilterChange}
                 width="100px"
+              />
+              <TableHeader
+                label="Type Gérance"
+                sortKey="TypeGerance"
+                sortConfig={sortConfig}
+                onSortChange={onSortChange}
+                filterValues={filterValues.TypeGerance}
+                selectedFilterValue={getFilterValue('TypeGerance')}
+                onFilterChange={handleFilterChange}
+                width="120px"
               />
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '120px' }}>
                 Actions
@@ -322,7 +352,7 @@ export default function StationsTable({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-gray-200"> 
+          <tbody className="divide-y divide-gray-200">
             {visible.length === 0 ? (
               <tr>
                 <td colSpan={16} className="px-4 py-8 text-center text-sm text-gray-500">
@@ -345,10 +375,10 @@ export default function StationsTable({
               visible.map((s) => {
                 const capSSP = s.capacites.filter(c => c.TypeCarburant === 'SSP').reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0);
                 const capGasoil = s.capacites.filter(c => c.TypeCarburant === 'Gasoil').reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0);
-                
+
                 return (
-                  <tr 
-                    key={s.station.StationID} 
+                  <tr
+                    key={s.station.StationID}
                     className="hover:bg-gray-50 cursor-pointer"
                     onDoubleClick={() => onRowDoubleClick(s.station.StationID)}
                   >
@@ -412,6 +442,11 @@ export default function StationsTable({
                     <td className="px-4 py-3">
                       <div className="text-sm text-gray-900 truncate" title={s.station.Statut}>{s.station.Statut || '-'}</div>
                     </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-900 truncate" title={s.station.TypeGerance}>
+                        {s.station.TypeGerance || '-'}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-right space-x-2">
                       <button 
                         onClick={() => onEdit(s)} 
@@ -434,7 +469,6 @@ export default function StationsTable({
         </table>
       </div>
 
-      {/* Pagination */}
       {visible.length > 0 && (
         <div className="px-4 py-3 border-t border-gray-200">
           <TablePagination 

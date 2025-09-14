@@ -76,14 +76,20 @@ export function AnalyseForm({ mode, stationId, analyse, onSaved, onCancel }: Ana
           />
 
           {/* Resultat Analyse */}
-          <Input
-            label="Résultat d'Analyse"
-            value={form.ResultatAnalyse}
-            onChange={(e) => updateField('ResultatAnalyse', e.target.value)}
-            error={errors.ResultatAnalyse}
-            placeholder="Ex: Conforme, Non Conforme, etc."
-            required
-          />
+          <div className="flex flex-col">
+            <label className="text-sm font-medium text-gray-900 mb-1">Résultat d'Analyse</label>
+            <select
+              value={form.ResultatAnalyse}
+              onChange={(e) => updateField('ResultatAnalyse', e.target.value as 'Positive' | 'Négative')}
+              className="border border-gray-300 rounded-md px-3 py-2"
+              required
+            >
+              <option value="">-- Sélectionner --</option>
+              <option value="Positif">Positif</option>
+              <option value="Négatif">Négatif</option>
+            </select>
+            {errors.ResultatAnalyse && <span className="text-red-500 text-sm">{errors.ResultatAnalyse}</span>}
+          </div>
         </div>
       </fieldset>
 

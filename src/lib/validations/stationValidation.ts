@@ -20,10 +20,9 @@ export function validateStationData(data: StationFormData): {
     'RaisonSociale',
     'Commune',
     'Province',
-    'NomGerant', // Added
-    'PrenomGerant', // Added
+    'NomGerant', 
+    'PrenomGerant', 
     'CINGerant',
-    // CHANGE: Added Telephone
     'Telephone',
   ];
   

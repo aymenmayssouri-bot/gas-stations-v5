@@ -15,7 +15,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: '📊' },
     { name: 'Gas Stations', href: '/stations', icon: '⛽' },
-    { name: 'Reports', href: '/reports', icon: '📈' },
+    { name: 'Nearby Station', href: '/nearbyStation', icon: '📈' },
   ];
 
   return (

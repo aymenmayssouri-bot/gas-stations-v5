@@ -13,6 +13,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useAnalysesIndex } from '@/hooks/useStationData/useAnalysesIndex';
 import AnalyseTable from '@/components/stations/AnalyseTable';
 import AnalyseForm from '@/components/stations/AnalyseForm';
+import { useDeleteStation } from '@/hooks/stations/useDeleteStation';
 
 // Dynamically import Map (to avoid SSR issues)
 const GoogleMap = dynamic(() => import('@/components/dashboard/MapPreview'), { ssr: false });
@@ -22,6 +23,7 @@ export default function StationDetailPage() {
   const router = useRouter();
   const { stations, loading: stationsLoading, error: stationsError, refetch } = useStations();
   const { analyses, loading: analysesLoading, error: analysesError, refetch: refetchAnalyses } = useAnalysesIndex(id);
+  const { deleteStation, loading: deleteLoading } = useDeleteStation();
   
   const [station, setStation] = useState<StationWithDetails | null>(null);
   
@@ -84,6 +86,22 @@ export default function StationDetailPage() {
     setEditingAnalyse(undefined);
   };
 
+  // Delete handler
+  const handleDelete = async () => {
+    if (!station || deleteLoading) return;
+    
+    if (!confirm("Est ce que vous êtes sûr de vouloir supprimer cette station ?")) {
+      return;
+    }
+    
+    try {
+      await deleteStation(station.station.StationID);
+      router.push('/stations');
+    } catch (error) {
+      console.error('Failed to delete station:', error);
+    }
+  };
+
   useEffect(() => {
     console.log('Current station:', station);
     console.log('Current analyses:', analyses);
@@ -119,9 +137,7 @@ export default function StationDetailPage() {
         <h1 className="text-2xl font-bold">{station.station.NomStation}</h1>
         <div className="space-x-2">
           <Button onClick={handleEditStation}>Modifier la station</Button>
-          <Button onClick={handleCreateAnalyse} variant="secondary">
-            Ajouter une analyse
-          </Button>
+          <Button onClick={handleDelete} variant="danger">Supprimer</Button>
         </div>
       </div>
 
@@ -137,8 +153,10 @@ export default function StationDetailPage() {
           <div><strong>Raison Sociale:</strong> {station.marque.RaisonSociale || 'N/A'}</div>
           <div><strong>Type:</strong> <span className="capitalize">{station.station.Type}</span></div>
           
+          
           <div><strong>Propriétaire:</strong> {getProprietaireName(station)}</div>
           <div className="col-span-2"><strong>Gérant:</strong> {station.gerant.fullName} (CIN: {station.gerant.CINGerant || 'N/A'}, Tél: {station.gerant.Telephone || 'N/A'})</div>
+          <div><strong>Type de Gérance:</strong> <span className="capitalize">{station.station.TypeGerance}</span></div>
           
           <div className="col-span-3 border-t pt-4 mt-2"><strong>Adresse:</strong> {station.station.Adresse}</div>
           <div><strong>Province:</strong> {station.province.NomProvince}</div>

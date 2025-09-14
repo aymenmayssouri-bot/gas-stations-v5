@@ -1,4 +1,4 @@
-// src/types/station.ts - Fully Updated
+// src/types/station.ts 
 export type Station = {
   StationID: string;
   Code: number;             
@@ -12,6 +12,7 @@ export type Station = {
   CommuneID: string;
   GerantID: string;
   ProprietaireID: string;
+  TypeGerance: 'libre' | 'direct' | 'partenariat';
 };
 
 export type Marque = {
@@ -59,7 +60,7 @@ export type ProprietaireMorale = {
 export type Autorisation = {
   AutorisationID: string;
   StationID: string;
-  TypeAutorisation: 'création' | 'transformation' | 'transfert' | 'changement de marques';
+  TypeAutorisation: 'création' | 'mise en service' | 'transformation' | 'transfert' | 'changement de marques';
   NumeroAutorisation: string;
   DateAutorisation: Date | null;
 };
@@ -77,7 +78,7 @@ export type Analyse = {
   ProduitAnalyse: 'Gasoil' | 'SSP';
   DateAnalyse: Date | null;
   CodeAnalyse: string;
-  ResultatAnalyse: string;
+  ResultatAnalyse: 'Positif' | 'Négatif';
 };
 
 export type StationWithDetails = {
@@ -126,7 +127,7 @@ export type StationFormData = {
   
   // --- MODIFIED: Autorisations is now an array ---
   autorisations: {
-    TypeAutorisation: 'création' | 'transformation' | 'transfert' | 'changement de marques';
+    TypeAutorisation: 'création' | 'mise en service' | 'transformation' | 'transfert' | 'changement de marques';
     NumeroAutorisation: string;
     DateAutorisation: string;
   }[];
@@ -134,4 +135,10 @@ export type StationFormData = {
   // Capacities
   CapaciteGasoil: string;
   CapaciteSSP: string;
+  
+  // Type of Management
+  TypeGerance: 'libre' | 'direct' | 'partenariat';
+
+  // Active or Inactive
+  Statut: 'en activité' | 'en projet' | 'en arrêt' | 'archivé';
 };

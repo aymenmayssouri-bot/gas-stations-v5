@@ -302,6 +302,8 @@ export function useUpdateStation() {
         Latitude: formData.Latitude ? parseFloat(formData.Latitude) : 0,
         Longitude: formData.Longitude ? parseFloat(formData.Longitude) : 0,
         Type: formData.Type,
+        TypeGerance: formData.TypeGerance,
+        Statut: formData.Statut,
         MarqueID: marqueId,
         CommuneID: communeId,
         GerantID: gerantId,

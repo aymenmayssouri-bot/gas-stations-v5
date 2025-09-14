@@ -1,96 +1,91 @@
 'use client';
 
-import { useState } from 'react';
-import  { Button } from '@/components/ui/Button';
-import { SearchInput } from '@/components/ui/SearchInput';
+import { SearchInput } from '@/components/ui';
+import { Button } from '@/components/ui';
 
 interface TableActionsProps {
   onAddNew: () => void;
   searchQuery: string;
-  onSearchChange: (query: string) => void;
+  onSearchChange: (value: string) => void;
   totalStations: number;
   onRefresh: () => void;
+  onExport: () => void;
+  isExporting: boolean;
+  // Add new props for analyse filters
+  analysisStatus: 'all' | 'analysed' | 'not-analysed';
+  onAnalysisStatusChange: (status: 'all' | 'analysed' | 'not-analysed') => void;
+  analysisYear: number | 'all';
+  onAnalysisYearChange: (year: number | 'all') => void;
+  years: number[];
+  analysesLoading?: boolean;
 }
 
-export function TableActions({
+export default function TableActions({
   onAddNew,
   searchQuery,
   onSearchChange,
   totalStations,
-  onRefresh
+  onRefresh,
+  onExport,
+  isExporting,
+  analysisStatus,
+  onAnalysisStatusChange,
+  analysisYear,
+  onAnalysisYearChange,
+  years,
+  analysesLoading
 }: TableActionsProps) {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await onRefresh();
-    } finally {
-      setTimeout(() => setIsRefreshing(false), 500); // Brief delay for UX
-    }
-  };
-
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        {/* Left side - Search */}
-        <div className="flex-1 max-w-md">
-          <SearchInput
-            value={searchQuery}
-            onChange={onSearchChange}
-            placeholder="Search stations by name, city, or brand..."
-            className="w-full"
-          />
-        </div>
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-lg border">
+      <div className="flex items-center gap-4 w-full sm:w-auto">
+        <Button onClick={onAddNew} variant="primary">
+          Ajouter une station
+        </Button>
+        <Button onClick={onExport} variant="secondary" disabled={isExporting}>
+          {isExporting ? 'Exportation...' : 'Exporter le tableau'}
+        </Button>
+        <Button onClick={onRefresh} variant="secondary">
+          Rafraîchir
+        </Button>
+      </div>
 
-        {/* Right side - Actions */}
-        <div className="flex items-center gap-3">
-          <div className="text-sm text-gray-500 hidden sm:block">
-            {totalStations} station{totalStations !== 1 ? 's' : ''} total
-          </div>
-          
-          <Button
-            variant="secondary"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-2"
+      {/* Add analyse filters with label */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium text-gray-700">Analyses PP :</span>
+        <select
+          value={analysisStatus}
+          onChange={(e) => onAnalysisStatusChange(e.target.value as 'all' | 'analysed' | 'not-analysed')}
+          className="border rounded px-2 py-1 text-sm"
+          disabled={analysesLoading}
+        >
+          <option value="all">Toutes les stations</option>
+          <option value="analysed">Stations Analysées</option>
+          <option value="not-analysed">Stations Non Analysées</option>
+        </select>
+
+        {analysisStatus === 'analysed' && (
+          <select
+            value={analysisYear}
+            onChange={(e) => onAnalysisYearChange(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10))}
+            className="border rounded px-2 py-1 text-sm"
+            disabled={analysesLoading}
           >
-            <svg 
-              className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
-              />
-            </svg>
-            Refresh
-          </Button>
-          
-          <Button
-            variant="primary"
-            onClick={onAddNew}
-            className="flex items-center gap-2"
-          >
-            <svg 
-              className="w-4 h-4" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M12 4v16m8-8H4" 
-              />
-            </svg>
-            Add Station
-          </Button>
+            <option value="all">Toutes les années</option>
+            {years.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      <div className="flex items-center gap-4 w-full sm:w-auto">
+        <SearchInput
+          value={searchQuery}
+          onChange={onSearchChange}
+          placeholder="Rechercher une station..."
+        />
+        <div className="text-sm text-gray-500">
+          {totalStations} station{totalStations !== 1 ? 's' : ''}
         </div>
       </div>
     </div>

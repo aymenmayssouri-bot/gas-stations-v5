@@ -98,7 +98,9 @@ export function useAnalysesIndex(stationId: string | string[]) {
           if (year !== 'all') {
             return stationAnalyses.some(
               a => a.DateAnalyse && 
-              new Date(a.DateAnalyse).getFullYear() === year
+              a.DateAnalyse instanceof Date && 
+              !isNaN(a.DateAnalyse.getTime()) && 
+              a.DateAnalyse.getFullYear() === year
             );
           }
           return true;

@@ -11,7 +11,7 @@ interface AnalyseFormData {
   ProduitAnalyse: 'Gasoil' | 'SSP';
   DateAnalyse: string;
   CodeAnalyse: string;
-  ResultatAnalyse: string;
+  ResultatAnalyse: 'Positif' | 'Négatif';
 }
 
 export function useAnalyseForm(mode: Mode, stationId: string, analyse?: Analyse) {
@@ -21,7 +21,7 @@ export function useAnalyseForm(mode: Mode, stationId: string, analyse?: Analyse)
     ProduitAnalyse: 'Gasoil',
     DateAnalyse: '',
     CodeAnalyse: '',
-    ResultatAnalyse: '',
+    ResultatAnalyse: 'Positif',
   };
 
   const [form, setForm] = useState<AnalyseFormData>(emptyForm);
@@ -31,11 +31,27 @@ export function useAnalyseForm(mode: Mode, stationId: string, analyse?: Analyse)
   // Load existing analyse data in edit mode
   useEffect(() => {
     if (mode === 'edit' && analyse) {
+      // Ensure DateAnalyse is properly converted to string for input
+      let dateString = '';
+      if (analyse.DateAnalyse) {
+        try {
+          const date = analyse.DateAnalyse instanceof Date ? 
+            analyse.DateAnalyse : 
+            new Date(analyse.DateAnalyse);
+          
+          if (!isNaN(date.getTime())) {
+            dateString = date.toISOString().split('T')[0];
+          }
+        } catch (error) {
+          console.warn('Invalid date in analyse:', analyse.DateAnalyse);
+        }
+      }
+
       setForm({
         ProduitAnalyse: analyse.ProduitAnalyse || 'Gasoil',
-        DateAnalyse: analyse.DateAnalyse ? analyse.DateAnalyse.toISOString().split('T')[0] : '',
+        DateAnalyse: dateString,
         CodeAnalyse: analyse.CodeAnalyse || '',
-        ResultatAnalyse: analyse.ResultatAnalyse || '',
+        ResultatAnalyse: analyse.ResultatAnalyse || 'Positif',
       });
     } else {
       setForm(emptyForm);
@@ -94,7 +110,7 @@ export function useAnalyseForm(mode: Mode, stationId: string, analyse?: Analyse)
         ProduitAnalyse: form.ProduitAnalyse,
         DateAnalyse: new Date(form.DateAnalyse),
         CodeAnalyse: form.CodeAnalyse.trim(),
-        ResultatAnalyse: form.ResultatAnalyse.trim(),
+        ResultatAnalyse: form.ResultatAnalyse as 'Positif' | 'Négatif',
       };
 
       if (mode === 'create') {
@@ -103,6 +119,8 @@ export function useAnalyseForm(mode: Mode, stationId: string, analyse?: Analyse)
         await updateAnalyse(analyse.AnalyseID, analyseData);
       }
 
+
+      
       setSubmitting(false);
       return true;
     } catch (err) {

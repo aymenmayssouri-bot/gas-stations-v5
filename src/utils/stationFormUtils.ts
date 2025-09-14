@@ -61,6 +61,9 @@ export function stationWithDetailsToFormData(stationData: StationWithDetails): S
     
     // Capacities
     CapaciteGasoil: gasoilCapacity?.CapaciteLitres?.toString() || '',
-    CapaciteSSP: sspCapacity?.CapaciteLitres?.toString() || ''
+    CapaciteSSP: sspCapacity?.CapaciteLitres?.toString() || '',
+
+    TypeGerance: station.TypeGerance || 'libre',
+    Statut: station.Statut || 'en activité',
   };
 }

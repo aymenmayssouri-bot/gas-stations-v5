@@ -1,5 +1,4 @@
 // src/components/stations/StationForm.tsx
-// Form for the normalized schema, powered by useStationForm hook
 
 'use client';
 
@@ -52,8 +51,8 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
 
       {/* General Information */}
       <fieldset className="space-y-6">
-        <legend className="form.station-form fieldset .station-form-legend !text-lg !font-semibold border-b pb-2 w-full text-gray-900 !important">
-          <span className="text-gray-900 !important">Informations Générales</span>
+        <legend className="text-lg font-semibold border-b pb-2 w-full">
+          Informations Générales
         </legend>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input 
@@ -88,6 +87,32 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
             onChange={(e) => updateField('Longitude', e.target.value)} 
             error={errors.Longitude}
           />
+          {/* New fields for Type de Gérance and Statut */}
+          <div className="flex flex-col">
+            <label className="text-sm font-medium text-gray-900 mb-1">Type de Gérance</label>
+            <select
+              className="border border-gray-300 rounded-md px-3 py-2"
+              value={form.TypeGerance}
+              onChange={(e) => updateField('TypeGerance', e.target.value)}
+            >
+              <option value="libre">Libre</option>
+              <option value="direct">Direct</option>
+              <option value="partenariat">Partenariat</option>
+            </select>
+          </div>
+          <div className="flex flex-col">
+            <label className="text-sm font-medium text-gray-900 mb-1">Statut</label>
+            <select
+              className="border border-gray-300 rounded-md px-3 py-2"
+              value={form.Statut}
+              onChange={(e) => updateField('Statut', e.target.value)}
+            >
+              <option value="en activité">En activité</option>
+              <option value="en projet">En projet</option>
+              <option value="en arrêt">En arrêt</option>
+              <option value="archivé">Archivé</option>
+            </select>
+          </div>
         </div>
       </fieldset>
 
@@ -277,6 +302,7 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
                   onChange={(e) => updateAutorisationField(index, 'TypeAutorisation', e.target.value)}
                 >
                   <option value="création">Création</option>
+                  <option value="mise en service">mise en service</option>
                   <option value="transformation">Transformation</option>
                   <option value="transfert">Transfert</option>
                   <option value="changement de marques">Changement de marques</option>
@@ -317,7 +343,7 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
         </legend>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input 
-            label="Capacité Gasoil (L)" 
+            label="Capacité Gasoil (Tonnes)" 
             name="CapaciteGasoil" 
             type="number"
             value={form.CapaciteGasoil} 
@@ -325,7 +351,7 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
             error={errors.CapaciteGasoil}
           />
           <Input 
-            label="Capacité SSP (L)" 
+            label="Capacité SSP (Tonnes)" 
             name="CapaciteSSP" 
             type="number"
             value={form.CapaciteSSP} 

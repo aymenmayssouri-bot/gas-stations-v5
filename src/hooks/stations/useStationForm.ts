@@ -23,7 +23,7 @@ export function useStationForm(mode: Mode, station?: StationWithDetails) {
       TypeProprietaire: 'Physique', PrenomProprietaire: '', NomProprietaire: '', NomEntreprise: '',
       // Start with one empty autorisation
       autorisations: [{ TypeAutorisation: 'création', NumeroAutorisation: '', DateAutorisation: '' }],
-      CapaciteGasoil: '', CapaciteSSP: '',
+      CapaciteGasoil: '', CapaciteSSP: '', TypeGerance: 'libre', Statut: 'en activité'
     }),
     []
   );

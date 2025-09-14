@@ -257,7 +257,7 @@ export function useCreateStation() {
       );
       const station: Station = {
         Code: await getNextStationCode(),
-        Statut: 'en activité',
+        Statut: formData.Statut,
         StationID: stationRef.id,
         NomStation: formData.NomStation.trim(),
         Adresse: formData.Adresse.trim(),
@@ -268,6 +268,7 @@ export function useCreateStation() {
         CommuneID: communeId,
         GerantID: gerantId,
         ProprietaireID: proprietaireId || '',
+        TypeGerance: formData.TypeGerance
       };
       console.log('Creating station with ProprietaireID:', proprietaireId);
       batch.set(stationRef, station);
