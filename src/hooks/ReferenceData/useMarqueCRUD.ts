@@ -1,4 +1,3 @@
-// src/hooks/referenceData/useMarqueCRUD.ts
 import { useCallback, useState } from 'react';
 import { collection, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
@@ -12,11 +11,11 @@ export function useMarqueCRUD() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createMarque = useCallback(async (data: Omit<Marque, 'id'>) => {
+  const createMarque = useCallback(async (data: Omit<Marque, 'id' | 'MarqueID'>) => {
     setLoading(true);
     setError(null);
     try {
-      await addDoc(collection(db, COLLECTIONS.MARQUES), data);
+      await addDoc(collection(db, COLLECTIONS.MARQUES), { MarqueID: '', ...data } as any);
     } catch (err: any) {
       setError(`Failed to create marque: ${err.message}`);
       throw err;
@@ -29,7 +28,7 @@ export function useMarqueCRUD() {
     setLoading(true);
     setError(null);
     try {
-      await updateDoc(doc(db, COLLECTIONS.MARQUES, id), data);
+      await updateDoc(doc(db, COLLECTIONS.MARQUES, id), data as any);
     } catch (err: any) {
       setError(`Failed to update marque: ${err.message}`);
       throw err;

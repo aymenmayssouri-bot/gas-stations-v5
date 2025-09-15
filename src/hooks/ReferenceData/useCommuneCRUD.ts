@@ -1,4 +1,3 @@
-// src/hooks/ReferenceData/useCommuneCRUD.ts
 import { useCallback, useState } from 'react';
 import {
   collection,
@@ -18,11 +17,11 @@ export function useCommuneCRUD() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createCommune = useCallback(async (data: Omit<Commune, 'id'>) => {
+  const createCommune = useCallback(async (data: Omit<Commune, 'id' | 'CommuneID'>) => {
     setLoading(true);
     setError(null);
     try {
-      await addDoc(collection(db, COLLECTIONS.COMMUNES), data as any);
+      await addDoc(collection(db, COLLECTIONS.COMMUNES), { CommuneID: '', ...data } as any);
     } catch (err: any) {
       setError(`Failed to create commune: ${err.message}`);
       throw err;
