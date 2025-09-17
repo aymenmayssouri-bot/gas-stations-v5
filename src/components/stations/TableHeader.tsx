@@ -54,7 +54,7 @@ export default function TableHeader({
 
   return (
     <th
-      className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider cursor-pointer relative group"
+      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer relative group"
       onClick={handleSortClick}
       style={{ width: width }}
     >

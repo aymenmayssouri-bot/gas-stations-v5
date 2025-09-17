@@ -1,11 +1,9 @@
 // src/components/stations/AnalyseTable.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Analyse } from '@/types/station';
 import { formatDate } from '@/utils/format';
-import { useAnalyseCRUD } from '@/hooks/useStationData/useAnalyseCRUD';
-import { Button } from '@/components/ui/Button';
 
 interface AnalyseTableProps {
   analyses: Analyse[];
@@ -16,27 +14,6 @@ interface AnalyseTableProps {
 }
 
 export default function AnalyseTable({ analyses, loading, error, onEdit, onRefresh }: AnalyseTableProps) {
-  const { deleteAnalyse, loading: deleting } = useAnalyseCRUD();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const handleDelete = async (analyse: Analyse) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'analyse "${analyse.CodeAnalyse}" ?`)) {
-      return;
-    }
-
-    setDeletingId(analyse.AnalyseID);
-    
-    try {
-      await deleteAnalyse(analyse.AnalyseID);
-      onRefresh?.(); // Refresh the analyses after deletion
-    } catch (err) {
-      console.error('Error deleting analyse:', err);
-      alert('Erreur lors de la suppression de l\'analyse');
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
   if (loading) {
     return <div className="text-center py-4">Chargement des analyses...</div>;
   }
@@ -100,7 +77,7 @@ export default function AnalyseTable({ analyses, loading, error, onEdit, onRefre
                   {analyse.ResultatAnalyse}
                 </span>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 {onEdit && (
                   <button
                     onClick={() => onEdit(analyse)}
@@ -109,13 +86,6 @@ export default function AnalyseTable({ analyses, loading, error, onEdit, onRefre
                     Modifier
                   </button>
                 )}
-                <button
-                  onClick={() => handleDelete(analyse)}
-                  disabled={deletingId === analyse.AnalyseID}
-                  className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                >
-                  {deletingId === analyse.AnalyseID ? 'Suppression...' : 'Supprimer'}
-                </button>
               </td>
             </tr>
           ))}

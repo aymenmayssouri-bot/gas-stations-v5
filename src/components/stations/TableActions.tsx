@@ -2,6 +2,8 @@
 
 import { SearchInput } from '@/components/ui';
 import { Button } from '@/components/ui';
+import { RefreshCcw } from 'lucide-react'; // Add this import for refresh icon
+import { FileSpreadsheet } from 'lucide-react'; // Add this import for excel icon
 
 interface TableActionsProps {
   onAddNew: () => void;
@@ -38,13 +40,23 @@ export default function TableActions({
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-lg border">
       <div className="flex items-center gap-4 w-full sm:w-auto">
-        <Button onClick={onAddNew} variant="primary">
+        <Button variant="default" className="bg-black hover:bg-gray-800">
           Ajouter une station
         </Button>
-        <Button onClick={onExport} variant="secondary" disabled={isExporting}>
+        <Button
+          onClick={onExport}
+          disabled={isExporting}
+          className="bg-[#217346] hover:bg-[#1a5c38] text-white flex items-center gap-2"
+        >
+          <FileSpreadsheet className="w-4 h-4" />
           {isExporting ? 'Exportation...' : 'Exporter le tableau'}
         </Button>
-        <Button onClick={onRefresh} variant="secondary">
+        <Button
+          onClick={onRefresh}
+          variant="secondary"
+          className="flex items-center gap-2"
+        >
+          <RefreshCcw className="w-4 h-4" />
           Rafraîchir
         </Button>
       </div>

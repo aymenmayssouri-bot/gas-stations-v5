@@ -15,6 +15,29 @@ function safeFullName(first?: string, last?: string) {
   return `${first || ''} ${last || ''}`.trim() || 'N/A';
 }
 
+// Add this constant outside your component
+const mapStyles = [
+  {
+    elementType: "geometry",
+    stylers: [{ visibility: "on" }]
+  },
+  {
+    featureType: "administrative.country",
+    elementType: "geometry",
+    stylers: [{ visibility: "on" }]
+  },
+  {
+    featureType: "administrative.country",
+    elementType: "labels",
+    stylers: [{ visibility: "off" }]
+  },
+  {
+    featureType: "administrative.country",
+    elementType: "geometry.stroke",
+    stylers: [{ visibility: "off" }]
+  }
+];
+
 export default function MapPreview({ stations }: MapPreviewProps) {
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
@@ -23,6 +46,25 @@ export default function MapPreview({ stations }: MapPreviewProps) {
   const mapRef = useRef<google.maps.Map | null>(null);
 
   const center = useMemo(() => ({ lat: 31.7917, lng: -7.0926 }), []);
+
+  const mapOptions = useMemo(() => ({
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: true,
+    zoomControl: true,
+    styles: mapStyles,
+    minZoom: 3,        // Reduced from 5 to allow more dezoom
+    maxZoom: 18,
+    restriction: {
+      latLngBounds: {
+        north: 45.0,   // Increased to allow more view
+        south: 20.0,   // Decreased to allow more view
+        west: -20.0,   // Increased to allow more view
+        east: 5.0      // Increased to allow more view
+      },
+      strictBounds: false  // Changed to false to make bounds more flexible
+    }
+  }), []);
 
   const onLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
@@ -57,7 +99,13 @@ export default function MapPreview({ stations }: MapPreviewProps) {
   if (!isLoaded) return <div>Loading Map...</div>;
 
   return (
-    <GoogleMap mapContainerStyle={mapContainerStyle} zoom={6} center={center} onLoad={onLoad}>
+    <GoogleMap
+      mapContainerStyle={mapContainerStyle}
+      zoom={6}
+      center={center}
+      onLoad={onLoad}
+      options={mapOptions} // Apply the customized options here
+    >
       {stations.map((s) =>
         s.station.Latitude && s.station.Longitude ? (
           <Marker

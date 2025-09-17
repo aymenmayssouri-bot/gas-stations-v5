@@ -37,10 +37,7 @@ export function AnalyseForm({ mode, stationId, analyse, onSaved, onCancel }: Ana
       {errors.__form && <ErrorMessage message={errors.__form} />}
 
       <fieldset className="space-y-6">
-        <legend className="text-lg font-semibold border-b pb-2 w-full text-gray-900">
-          {mode === 'create' ? 'Nouvelle Analyse' : 'Modifier l\'Analyse'}
-        </legend>
-
+        {/* Remove legend since the title is already in the modal header */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Produit Analyse */}
           <div className="flex flex-col">

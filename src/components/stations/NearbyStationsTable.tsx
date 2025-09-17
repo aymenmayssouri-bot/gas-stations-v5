@@ -10,8 +10,9 @@ interface NearbyStationsTableProps {
 export default function NearbyStationsTable({ stations }: NearbyStationsTableProps) {
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full bg-white border">
-        <thead>
+      <div className="mb-2 text-sm text-gray-600">Stations à moins de 20 km par route (triées par distance croissante)</div>
+      <table className="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
+        <thead className="bg-gray-50">
           <tr>
             <th className="px-4 py-2 border text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
               Code
@@ -29,11 +30,13 @@ export default function NearbyStationsTable({ stations }: NearbyStationsTablePro
         </thead>
         <tbody className="divide-y divide-gray-200">
           {stations.map((s) => (
-            <tr key={s.station.StationID}>
+            <tr key={s.station.StationID} className="hover:bg-gray-50">
               <td className="px-4 py-2 border text-sm text-gray-900">{s.station.Code || '-'}</td>
-              <td className="px-4 py-2 border text-sm text-gray-900">{s.marque.Marque || '-'}</td>
+              <td className="px-4 py-2 border text-sm text-gray-900 font-medium">{s.marque.Marque || '-'}</td>
               <td className="px-4 py-2 border text-sm text-gray-900">{s.commune.NomCommune || '-'}</td>
-              <td className="px-4 py-2 border text-sm text-gray-900">{s.distance.toFixed(2)}</td>
+              <td className="px-4 py-2 border text-sm text-gray-900 font-semibold text-green-600">
+                {s.distance.toFixed(2)}
+              </td>
             </tr>
           ))}
         </tbody>

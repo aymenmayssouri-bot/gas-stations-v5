@@ -234,239 +234,235 @@ export default function StationsTable({
         </div>
       )}
 
-      <div className="overflow-x-auto w-full" style={{ minWidth: '1600px' }}>
-        <table className="w-full" style={{ tableLayout: 'fixed' }}>
-          <thead className="bg-gray-50 border-b text-gray-900">
-            <tr>
-              <TableHeader
-                label="Code"
-                sortKey="Code"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-                filterValues={filterValues.Code}
-                selectedFilterValue={getFilterValue('Code')}
-                onFilterChange={handleFilterChange}
-                width="80px"
-              />
-              <TableHeader
-                label="Marque"
-                sortKey="Marque"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-                filterValues={filterValues.Marque}
-                selectedFilterValue={getFilterValue('Marque')}
-                onFilterChange={handleFilterChange}
-                width="120px"
-              />
-              <TableHeader
-                label="Nom Station"
-                sortKey="NomStation"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-                filterValues={filterValues.NomStation}
-                selectedFilterValue={getFilterValue('NomStation')}
-                onFilterChange={handleFilterChange}
-                width="150px"
-              />
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '150px' }}>
-                Propriétaire
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '150px' }}>
-                Gérant
-              </th>
-              <TableHeader
-                label="Adresse"
-                sortKey="Adresse"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-                filterValues={filterValues.Adresse}
-                selectedFilterValue={getFilterValue('Adresse')}
-                onFilterChange={handleFilterChange}
-                width="200px"
-              />
-              <TableHeader
-                label="Province"
-                sortKey="NomProvince"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-                filterValues={filterValues.NomProvince}
-                selectedFilterValue={getFilterValue('NomProvince')}
-                onFilterChange={handleFilterChange}
-                width="120px"
-              />
-              <TableHeader
-                label="Commune"
-                sortKey="NomCommune"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-                filterValues={filteredCommunes}
-                selectedFilterValue={getFilterValue('NomCommune')}
-                onFilterChange={handleFilterChange}
-                width="120px"
-              />
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '100px' }}>
-                Latitude
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '100px' }}>
-                Longitude
-              </th>
-              <TableHeader
-                label="Type"
-                sortKey="Type"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-                filterValues={filterValues.Type}
-                selectedFilterValue={getFilterValue('Type')}
-                onFilterChange={handleFilterChange}
-                width="100px"
-              />
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '100px' }}>
-                Cap. SSP (T)
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '100px' }}>
-                Cap. Gasoil (T)
-              </th>
-              <TableHeader
-                label="Statut"
-                sortKey="Status"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-                filterValues={filterValues.Statut}
-                selectedFilterValue={getFilterValue('Status')}
-                onFilterChange={handleFilterChange}
-                width="100px"
-              />
-              <TableHeader
-                label="Type Gérance"
-                sortKey="TypeGerance"
-                sortConfig={sortConfig}
-                onSortChange={onSortChange}
-                filterValues={filterValues.TypeGerance}
-                selectedFilterValue={getFilterValue('TypeGerance')}
-                onFilterChange={handleFilterChange}
-                width="120px"
-              />
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 uppercase tracking-wider" style={{ width: '120px' }}>
-                Actions
-              </th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-gray-200">
-            {visible.length === 0 ? (
+      <div className="overflow-x-auto w-full">
+        <div className="max-h-[600px] overflow-y-auto">
+          <table className="w-full" style={{ tableLayout: 'fixed', width: '1815px', minWidth: '1815px' }}>
+            <thead className="bg-gray-50 border-b-2 border-gray-300 text-gray-500 sticky top-0 z-10">
               <tr>
-                <td colSpan={16} className="px-4 py-8 text-center text-sm text-gray-500">
-                  {filters.length > 0 ? (
-                    <div>
-                      <p>Aucune station ne correspond aux filtres appliqués.</p>
-                      <button
-                        onClick={clearAllFilters}
-                        className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        Effacer tous les filtres
-                      </button>
-                    </div>
-                  ) : (
-                    'Aucune station trouvée.'
-                  )}
-                </td>
+                <TableHeader
+                  label="Code"
+                  sortKey="Code"
+                  sortConfig={sortConfig}
+                  onSortChange={onSortChange}
+                  filterValues={filterValues.Code}
+                  selectedFilterValue={getFilterValue('Code')}
+                  onFilterChange={handleFilterChange}
+                  width="80px"
+                />
+                <TableHeader
+                  label="Marque"
+                  sortKey="Marque"
+                  sortConfig={sortConfig}
+                  onSortChange={onSortChange}
+                  filterValues={filterValues.Marque}
+                  selectedFilterValue={getFilterValue('Marque')}
+                  onFilterChange={handleFilterChange}
+                  width="120px"
+                />
+                <TableHeader
+                  label="Nom Station"
+                  sortKey="NomStation"
+                  sortConfig={sortConfig}
+                  onSortChange={onSortChange}
+                  filterValues={filterValues.NomStation}
+                  selectedFilterValue={getFilterValue('NomStation')}
+                  onFilterChange={handleFilterChange}
+                  width="150px"
+                />
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50" style={{ width: '150px' }}>
+                  Propriétaire
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50" style={{ width: '150px' }}>
+                  Gérant
+                </th>
+                <TableHeader
+                  label="Adresse"
+                  sortKey="Adresse"
+                  sortConfig={sortConfig}
+                  onSortChange={onSortChange}
+                  filterValues={filterValues.Adresse}
+                  selectedFilterValue={getFilterValue('Adresse')}
+                  onFilterChange={handleFilterChange}
+                  width="200px"
+                />
+                <TableHeader
+                  label="Province"
+                  sortKey="NomProvince"
+                  sortConfig={sortConfig}
+                  onSortChange={onSortChange}
+                  filterValues={filterValues.NomProvince}
+                  selectedFilterValue={getFilterValue('NomProvince')}
+                  onFilterChange={handleFilterChange}
+                  width="120px"
+                />
+                <TableHeader
+                  label="Commune"
+                  sortKey="NomCommune"
+                  sortConfig={sortConfig}
+                  onSortChange={onSortChange}
+                  filterValues={filteredCommunes}
+                  selectedFilterValue={getFilterValue('NomCommune')}
+                  onFilterChange={handleFilterChange}
+                  width="120px"
+                />
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50" style={{ width: '100px' }}>
+                  Latitude
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50" style={{ width: '100px' }}>
+                  Longitude
+                </th>
+                <TableHeader
+                  label="Type"
+                  sortKey="Type"
+                  sortConfig={sortConfig}
+                  onSortChange={onSortChange}
+                  filterValues={filterValues.Type}
+                  selectedFilterValue={getFilterValue('Type')}
+                  onFilterChange={handleFilterChange}
+                  width="100px"
+                />
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50" style={{ width: '100px' }}>
+                  Cap. SSP (T)
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50" style={{ width: '100px' }}>
+                  Cap. Gasoil (T)
+                </th>
+                <TableHeader
+                  label="Statut"
+                  sortKey="Status"
+                  sortConfig={sortConfig}
+                  onSortChange={onSortChange}
+                  filterValues={filterValues.Statut}
+                  selectedFilterValue={getFilterValue('Status')}
+                  onFilterChange={handleFilterChange}
+                  width="100px"
+                />
+                <TableHeader
+                  label="Type Gérance"
+                  sortKey="TypeGerance"
+                  sortConfig={sortConfig}
+                  onSortChange={onSortChange}
+                  filterValues={filterValues.TypeGerance}
+                  selectedFilterValue={getFilterValue('TypeGerance')}
+                  onFilterChange={handleFilterChange}
+                  width="120px"
+                />
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50" style={{ width: '120px' }}>
+                  Actions
+                </th>
               </tr>
-            ) : (
-              visible.map((s) => {
-                const capSSP = s.capacites.filter(c => c.TypeCarburant === 'SSP').reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0);
-                const capGasoil = s.capacites.filter(c => c.TypeCarburant === 'Gasoil').reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0);
+            </thead>
 
-                return (
-                  <tr
-                    key={s.station.StationID}
-                    className="hover:bg-gray-50 cursor-pointer"
-                    onDoubleClick={() => onRowDoubleClick(s.station.StationID)}
-                  >
-                    <td className="px-4 py-3 truncate" title={s.station.Code?.toString()}>
-                      <div className="text-sm text-gray-900">{s.station.Code || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900 truncate" title={s.marque?.Marque}>{s.marque?.Marque || '-'}</div>
-                      {s.marque?.RaisonSociale && (
-                        <div className="text-xs text-gray-500 truncate" title={s.marque.RaisonSociale}>{s.marque.RaisonSociale}</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900 truncate" title={s.station.NomStation}>{s.station.NomStation || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900 truncate" title={getProprietaireName(s)}>{getProprietaireName(s)}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900 truncate">
-                        {safeFullName(s.gerant?.PrenomGerant, s.gerant?.NomGerant)}
+            <tbody className="divide-y divide-gray-200">
+              {visible.length === 0 ? (
+                <tr>
+                  <td colSpan={16} className="px-4 py-8 text-center text-sm text-gray-500">
+                    {filters.length > 0 ? (
+                      <div>
+                        <p>Aucune station ne correspond aux filtres appliqués.</p>
+                        <button
+                          onClick={clearAllFilters}
+                          className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Effacer tous les filtres
+                        </button>
                       </div>
-                      {s.gerant && (
-                        <div className="text-xs text-gray-500 truncate">
-                          {[s.gerant.CINGerant].filter(Boolean) || '-'}
-                          <br />
-                          {[s.gerant.Telephone].filter(Boolean) || '-'}
+                    ) : (
+                      'Aucune station trouvée.'
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                visible.map((s) => {
+                  const capSSP = s.capacites.filter(c => c.TypeCarburant === 'SSP').reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0);
+                  const capGasoil = s.capacites.filter(c => c.TypeCarburant === 'Gasoil').reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0);
+
+                  return (
+                    <tr
+                      key={s.station.StationID}
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onDoubleClick={() => onRowDoubleClick(s.station.StationID)}
+                    >
+                      <td className="px-4 py-3 truncate" title={s.station.Code?.toString()}>
+                        <div className="text-sm text-gray-900">{s.station.Code || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-900 truncate" title={s.marque?.Marque}>{s.marque?.Marque || '-'}</div>
+                        {s.marque?.RaisonSociale && (
+                          <div className="text-xs text-gray-500 truncate" title={s.marque.RaisonSociale}>{s.marque.RaisonSociale}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-900 truncate" title={s.station.NomStation}>{s.station.NomStation || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-900 truncate" title={getProprietaireName(s)}>{getProprietaireName(s)}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-900 truncate">
+                          {safeFullName(s.gerant?.PrenomGerant, s.gerant?.NomGerant)}
                         </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900 truncate" title={s.station.Adresse}>{s.station.Adresse || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900 truncate" title={s.province?.NomProvince}>{s.province?.NomProvince || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900 truncate" title={s.commune?.NomCommune}>{s.commune?.NomCommune || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900 truncate" title={s.station.Latitude?.toString()}>{s.station.Latitude || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900 truncate" title={s.station.Longitude?.toString()}>{s.station.Longitude || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        s.station.Type === 'service' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {s.station.Type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900">{capSSP || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900">{capGasoil || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900 truncate" title={s.station.Statut}>{s.station.Statut || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900 truncate" title={s.station.TypeGerance}>
-                        {s.station.TypeGerance || '-'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right space-x-2">
-                      <button 
-                        onClick={() => onEdit(s)} 
-                        className="text-blue-600 hover:text-blue-900 text-sm font-medium"
-                      >
-                        Modifier
-                      </button>
-                      <button 
-                        onClick={() => onDelete(s)} 
-                        className="text-red-600 hover:text-red-900 text-sm font-medium"
-                      >
-                        Supprimer
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                        {s.gerant && (
+                          <div className="text-xs text-gray-500 truncate">
+                            {[s.gerant.CINGerant].filter(Boolean) || '-'}
+                            <br />
+                            {[s.gerant.Telephone].filter(Boolean) || '-'}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-900 truncate" title={s.station.Adresse}>{s.station.Adresse || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-900 truncate" title={s.province?.NomProvince}>{s.province?.NomProvince || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-900 truncate" title={s.commune?.NomCommune}>{s.commune?.NomCommune || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-900 truncate" title={s.station.Latitude?.toString()}>{s.station.Latitude || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-900 truncate" title={s.station.Longitude?.toString()}>{s.station.Longitude || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          s.station.Type === 'service' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {s.station.Type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-900">{capSSP || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-900">{capGasoil || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-900 truncate" title={s.station.Statut}>{s.station.Statut || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-900 truncate" title={s.station.TypeGerance}>
+                          {s.station.TypeGerance || '-'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button 
+                          onClick={() => onEdit(s)} 
+                          className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                        >
+                          Modifier
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {visible.length > 0 && (

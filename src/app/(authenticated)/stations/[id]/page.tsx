@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { StationWithDetails, Analyse } from '@/types/station';
 import { useStations } from '@/hooks/stations/useStations';
-import { Card, Button, LoadingSpinner, ErrorMessage } from '@/components/ui';
+import { Card, CardHeader, CardContent, CardTitle, Button, LoadingSpinner, ErrorMessage } from '@/components/ui';
 import dynamic from 'next/dynamic';
 import { formatDate, getProprietaireName } from '@/utils/format';
 import { StationForm } from '@/components/stations/StationForm';
@@ -143,83 +143,100 @@ export default function StationDetailPage() {
 
       {/* Informations générales */}
       <Card>
-        <h2 className="text-lg font-semibold mb-4">Informations générales</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
-          <div><strong>Code:</strong> {station.station.Code || 'N/A'}</div>
-          <div><strong>Nom de la station:</strong> {station.station.NomStation}</div>
-          <div><strong>Statut:</strong> <span className="capitalize">{station.station.Statut || 'N/A'}</span></div>
-          
-          <div><strong>Marque:</strong> {station.marque.Marque}</div>
-          <div><strong>Raison Sociale:</strong> {station.marque.RaisonSociale || 'N/A'}</div>
-          <div><strong>Type:</strong> <span className="capitalize">{station.station.Type}</span></div>
-          
-          
-          <div><strong>Propriétaire:</strong> {getProprietaireName(station)}</div>
-          <div className="col-span-2"><strong>Gérant:</strong> {station.gerant.fullName} (CIN: {station.gerant.CINGerant || 'N/A'}, Tél: {station.gerant.Telephone || 'N/A'})</div>
-          <div><strong>Type de Gérance:</strong> <span className="capitalize">{station.station.TypeGerance}</span></div>
-          
-          <div className="col-span-3 border-t pt-4 mt-2"><strong>Adresse:</strong> {station.station.Adresse}</div>
-          <div><strong>Province:</strong> {station.province.NomProvince}</div>
-          <div><strong>Commune:</strong> {station.commune.NomCommune}</div>
-          <div/>
-          
-          <div><strong>Latitude:</strong> {station.station.Latitude}</div>
-          <div><strong>Longitude:</strong> {station.station.Longitude}</div>
-        </div>
+        <CardHeader>
+          <CardTitle>Informations générales</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
+            <div><strong>Code:</strong> {station.station.Code || 'N/A'}</div>
+            <div><strong>Nom de la station:</strong> {station.station.NomStation}</div>
+            <div><strong>Statut:</strong> <span className="capitalize">{station.station.Statut || 'N/A'}</span></div>
+            
+            <div><strong>Marque:</strong> {station.marque.Marque}</div>
+            <div><strong>Raison Sociale:</strong> {station.marque.RaisonSociale || 'N/A'}</div>
+            <div><strong>Type:</strong> <span className="capitalize">{station.station.Type}</span></div>
+            
+            <div><strong>Propriétaire:</strong> {getProprietaireName(station)}</div>
+            <div className="col-span-2"><strong>Gérant:</strong> {station.gerant.fullName} (CIN: {station.gerant.CINGerant || 'N/A'}, Tél: {station.gerant.Telephone || 'N/A'})</div>
+            <div><strong>Type de Gérance:</strong> <span className="capitalize">{station.station.TypeGerance}</span></div>
+            
+            <div className="col-span-3 border-t pt-4 mt-2"><strong>Adresse:</strong> {station.station.Adresse}</div>
+            <div><strong>Province:</strong> {station.province.NomProvince}</div>
+            <div><strong>Commune:</strong> {station.commune.NomCommune}</div>
+            <div/>
+            
+            <div><strong>Latitude:</strong> {station.station.Latitude}</div>
+            <div><strong>Longitude:</strong> {station.station.Longitude}</div>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Capacités */}
       {station.capacites?.length > 0 && (
         <Card>
-          <h2 className="text-lg font-semibold mb-2">Capacités de stockage</h2>
-          <ul className="list-disc pl-6 text-sm">
-            {station.capacites.map((c) => (
-              <li key={c.CapaciteID}>
-                {c.TypeCarburant} – {c.CapaciteLitres.toLocaleString('fr-FR')} litres
-              </li>
-            ))}
-          </ul>
+          <CardHeader>
+            <CardTitle>Capacités de stockage</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pl-6 text-sm">
+              {station.capacites.map((c) => (
+                <li key={c.CapaciteID}>
+                  {c.TypeCarburant} – {c.CapaciteLitres.toLocaleString('fr-FR')} litres
+                </li>
+              ))}
+            </ul>
+          </CardContent>
         </Card>
       )}
 
       {/* Autorisations */}
       {station.autorisations?.length > 0 && (
         <Card>
-          <h2 className="text-lg font-semibold mb-2">Autorisations</h2>
-          <ul className="list-disc pl-6 text-sm">
-            {station.autorisations.map((a) => (
-              <li key={a.AutorisationID}>
-                {a.TypeAutorisation} – N° {a.NumeroAutorisation} (du {formatDate(a.DateAutorisation)})
-              </li>
-            ))}
-          </ul>
+          <CardHeader>
+            <CardTitle>Autorisations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pl-6 text-sm">
+              {station.autorisations.map((a) => (
+                <li key={a.AutorisationID}>
+                  {a.TypeAutorisation} – N° {a.NumeroAutorisation} (du {formatDate(a.DateAutorisation)})
+                </li>
+              ))}
+            </ul>
+          </CardContent>
         </Card>
       )}
 
       {/* Analyses Table */}
       <Card>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Analyses</h2>
+        <CardHeader className="flex justify-between items-center">
+          <CardTitle>Analyses</CardTitle>
           <Button onClick={handleCreateAnalyse} size="sm">
             Nouvelle Analyse
           </Button>
-        </div>
-        <AnalyseTable 
-          analyses={stationAnalyses}
-          loading={analysesLoading}
-          error={analysesError}
-          onEdit={handleEditAnalyse}
-          onRefresh={refetchAnalyses}
-        />
+        </CardHeader>
+        <CardContent>
+          <AnalyseTable 
+            analyses={stationAnalyses}
+            loading={analysesLoading}
+            error={analysesError}
+            onEdit={handleEditAnalyse}
+            onRefresh={refetchAnalyses}
+          />
+        </CardContent>
       </Card>
 
       {/* Map */}
       {station.station.Latitude && station.station.Longitude && (
         <Card>
-          <h2 className="text-lg font-semibold mb-2">Localisation</h2>
-          <div className="h-80">
-            <GoogleMap stations={[station]} />
-          </div>
+          <CardHeader>
+            <CardTitle>Localisation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <GoogleMap stations={[station]} />
+            </div>
+          </CardContent>
         </Card>
       )}
 

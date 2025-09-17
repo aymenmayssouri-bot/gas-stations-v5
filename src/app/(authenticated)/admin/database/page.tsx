@@ -1,6 +1,7 @@
+// src/app/(authenticated)/admin/database/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useProvinces } from '@/hooks/ReferenceData/useProvinces';
 import { useCommunes } from '@/hooks/ReferenceData/useCommunes';
 import { useMarques } from '@/hooks/ReferenceData/useMarques';
@@ -71,7 +72,7 @@ const ProvincesPanel = () => {
     }
     try {
       if (editingProvince) {
-        await updateProvince(editingProvince.id, { NomProvince: nomProvince });
+        await updateProvince(editingProvince.ProvinceID, { NomProvince: nomProvince });
       } else {
         await createProvince({ NomProvince: nomProvince });
       }
@@ -98,7 +99,7 @@ const ProvincesPanel = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold">Provinces</h2>
-        <Button onClick={() => handleOpen()}>Create New Province</Button>
+        <Button variant="default" onClick={() => handleOpen()}>Create New Province</Button>
       </div>
       {error && <p className="text-red-500">{error}</p>}
       <Table>
@@ -116,7 +117,7 @@ const ProvincesPanel = () => {
                 <Button variant="outline" onClick={() => handleOpen(p)}>Edit</Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="danger">Delete</Button> {/* Use 'danger' or 'destructive' based on your Button */}
+                    <Button variant="destructive">Delete</Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
@@ -161,7 +162,6 @@ const ProvincesPanel = () => {
   );
 };
 
-// Similar updates for CommunesPanel and MarquesPanel (apply same pattern: variant="danger", form resets, etc.)
 const CommunesPanel = () => {
   const { provinces, loading: provincesLoading } = useProvinces();
   const { communes, loading: fetchLoading, refetch } = useCommunes();
@@ -170,6 +170,20 @@ const CommunesPanel = () => {
   const [editingCommune, setEditingCommune] = useState<Commune | null>(null);
   const [nomCommune, setNomCommune] = useState('');
   const [provinceId, setProvinceId] = useState('');
+  const [selectedProvinceFilter, setSelectedProvinceFilter] = useState<string>('');
+
+  // Add useEffect to set initial province
+  useEffect(() => {
+    if (provinces.length > 0 && !selectedProvinceFilter) {
+      setSelectedProvinceFilter(provinces[0].ProvinceID);
+    }
+  }, [provinces]);
+
+  // Filter communes based on selected province
+  const filteredCommunes = useMemo(() => {
+    if (!selectedProvinceFilter) return communes;
+    return communes.filter(commune => commune.ProvinceID === selectedProvinceFilter);
+  }, [communes, selectedProvinceFilter]);
 
   const handleOpen = (commune: Commune | null = null) => {
     setEditingCommune(commune);
@@ -214,7 +228,24 @@ const CommunesPanel = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold">Communes</h2>
-        <Button onClick={() => handleOpen()}>Create New Commune</Button>
+        <div className="flex items-center gap-4">
+          {/* Add Province Filter Dropdown */}
+          <div className="w-64">
+            <Select value={selectedProvinceFilter} onValueChange={setSelectedProvinceFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a province" />
+              </SelectTrigger>
+              <SelectContent>
+                {provinces.map((p) => (
+                  <SelectItem key={p.ProvinceID} value={p.ProvinceID}>
+                    {p.NomProvince}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="default" onClick={() => handleOpen()}>Create New Commune</Button>
+        </div>
       </div>
       {error && <p className="text-red-500">{error}</p>}
       <Table>
@@ -226,7 +257,8 @@ const CommunesPanel = () => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {communes.map((c) => (
+          {/* Use filteredCommunes instead of communes */}
+          {filteredCommunes.map((c) => (
             <TableRow key={c.CommuneID}>
               <TableCell>{c.NomCommune}</TableCell>
               <TableCell>{provinces.find((p) => p.ProvinceID === c.ProvinceID)?.NomProvince || 'Unknown'}</TableCell>
@@ -234,7 +266,7 @@ const CommunesPanel = () => {
                 <Button variant="outline" onClick={() => handleOpen(c)}>Edit</Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="danger">Delete</Button>
+                    <Button variant="destructive">Delete</Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
@@ -345,7 +377,7 @@ const MarquesPanel = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold">Marques</h2>
-        <Button onClick={() => handleOpen()}>Create New Marque</Button>
+        <Button variant="default" onClick={() => handleOpen()}>Create New Marque</Button>
       </div>
       {error && <p className="text-red-500">{error}</p>}
       <Table>
@@ -365,7 +397,7 @@ const MarquesPanel = () => {
                 <Button variant="outline" onClick={() => handleOpen(m)}>Edit</Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="danger">Delete</Button>
+                    <Button variant="destructive">Delete</Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>

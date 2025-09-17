@@ -1,10 +1,12 @@
 // src/app/(authenticated)/nearbyStation/page.tsx
-'use client';// src/app/(authenticated)/nearbyStations/page.tsx
 'use client';
 
 import { useState } from 'react';
 import { useNearbyStations } from '@/hooks/stations/useNearbyStations';
 import NearbyStationsTable from '@/components/stations/NearbyStationsTable';
+import { Button } from '@/components/ui/Button'; // shadcn Button
+import { Input } from '@/components/ui/Input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'; // Optional for better UI
 
 export default function NearbyStationsPage() {
   const [latitude, setLatitude] = useState<string>('');
@@ -24,46 +26,55 @@ export default function NearbyStationsPage() {
   };
 
   if (stationsLoading) {
-    return <div>Chargement des stations...</div>;
+    return <div className="p-4">Chargement des stations...</div>;
   }
 
   if (stationsError) {
-    return <div>Erreur: {stationsError}</div>;
+    return <div className="p-4 text-red-600">Erreur: {stationsError}</div>;
   }
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Stations à proximité</h1>
-      
-      <div className="flex space-x-4 mb-4">
-        <input
-          type="text"
-          placeholder="Latitude"
-          value={latitude}
-          onChange={(e) => setLatitude(e.target.value)}
-          className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <input
-          type="text"
-          placeholder="Longitude"
-          value={longitude}
-          onChange={(e) => setLongitude(e.target.value)}
-          className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          onClick={handleSearch}
-          disabled={nearbyLoading}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {nearbyLoading ? 'Recherche...' : 'Rechercher'}
-        </button>
-      </div>
+    <div className="p-4 max-w-4xl mx-auto">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Stations à proximité</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <Input
+              type="number"
+              step="any"
+              placeholder="Latitude (ex: 48.8566)"
+              value={latitude}
+              onChange={(e) => setLatitude(e.target.value)}
+              className="flex-1"
+            />
+            <Input
+              type="number"
+              step="any"
+              placeholder="Longitude (ex: 2.3522)"
+              value={longitude}
+              onChange={(e) => setLongitude(e.target.value)}
+              className="flex-1"
+            />
+            <Button onClick={handleSearch} disabled={nearbyLoading || !latitude || !longitude}>
+              {nearbyLoading ? 'Recherche...' : 'Rechercher'}
+            </Button>
+          </div>
 
-      {nearbyError && <p className="text-red-600 mb-4">{nearbyError}</p>}
+          {nearbyError && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {nearbyError}
+            </div>
+          )}
 
-      {nearbyStations.length > 0 && (
-        <NearbyStationsTable stations={nearbyStations} />
-      )}
+          {nearbyStations.length > 0 ? (
+            <NearbyStationsTable stations={nearbyStations} />
+          ) : (
+            !nearbyLoading && <p className="text-gray-500">Entrez des coordonnées et recherchez pour voir les stations proches.</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
