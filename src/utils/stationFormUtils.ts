@@ -1,4 +1,3 @@
-
 // src/utils/stationFormUtils.ts
 import { StationWithDetails, StationFormData } from '@/types/station';
 
@@ -22,48 +21,37 @@ export function stationWithDetailsToFormData(stationData: StationWithDetails): S
     id: station.StationID,
     NomStation: station.NomStation || '',
     Adresse: station.Adresse || '',
-    Latitude: station.Latitude ? station.Latitude.toString() : '',
-    Longitude: station.Longitude ? station.Longitude.toString() : '',
+    Latitude: station.Latitude ? station.Latitude.toString() : '0', // Default to '0' for number input
+    Longitude: station.Longitude ? station.Longitude.toString() : '0', // Default to '0' for number input
     Type: station.Type || 'service',
-    
-    // Marque
     Marque: marque?.Marque || '',
     RaisonSociale: marque?.RaisonSociale || '',
-    
-    // Location
     Province: province?.NomProvince || '',
     Commune: commune?.NomCommune || '',
-    
-    // Manager
     PrenomGerant: gerant?.PrenomGerant || '',
     NomGerant: gerant?.NomGerant || '',
     CINGerant: gerant?.CINGerant || '',
     Telephone: gerant?.Telephone || '',
-    
-    // Owner
     TypeProprietaire: proprietaire?.base?.TypeProprietaire || 'Physique',
-    PrenomProprietaire: proprietaire?.base?.TypeProprietaire === 'Physique' 
+    PrenomProprietaire: proprietaire?.base?.TypeProprietaire === 'Physique'
       ? (proprietaire.details as any)?.PrenomProprietaire || ''
       : '',
-    NomProprietaire: proprietaire?.base?.TypeProprietaire === 'Physique' 
+    NomProprietaire: proprietaire?.base?.TypeProprietaire === 'Physique'
       ? (proprietaire.details as any)?.NomProprietaire || ''
       : '',
-    NomEntreprise: proprietaire?.base?.TypeProprietaire === 'Morale' 
+    NomEntreprise: proprietaire?.base?.TypeProprietaire === 'Morale'
       ? (proprietaire.details as any)?.NomEntreprise || ''
       : '',
-    
-    // Authorizations
     autorisations: autorisations?.map(a => ({
       TypeAutorisation: a.TypeAutorisation,
-      NumeroAutorisation: a.NumeroAutorisation,
+      NumeroAutorisation: a.NumeroAutorisation || '',
       DateAutorisation: formatDateForInput(a.DateAutorisation)
     })) ?? [{ TypeAutorisation: 'création', NumeroAutorisation: '', DateAutorisation: '' }],
-    
-    // Capacities
-    CapaciteGasoil: gasoilCapacity?.CapaciteLitres?.toString() || '',
-    CapaciteSSP: sspCapacity?.CapaciteLitres?.toString() || '',
-
+    CapaciteGasoil: gasoilCapacity?.CapaciteLitres?.toString() || '0', // Default to '0' for number input
+    CapaciteSSP: sspCapacity?.CapaciteLitres?.toString() || '0', // Default to '0' for number input
     TypeGerance: station.TypeGerance || 'libre',
     Statut: station.Statut || 'en activité',
+    Commentaires: station.Commentaires || '', // Added to match StationFormData
+    NombreVolucompteur: station.NombreVolucompteur ? station.NombreVolucompteur.toString() : '0' // Default to '0'
   };
 }

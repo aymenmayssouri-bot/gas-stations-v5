@@ -1,27 +1,27 @@
 // src\app\(authenticated)\stations\page.tsx
-
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useStations } from "@/hooks/stations/useStations";
 import { useDeleteStation } from "@/hooks/stations/useDeleteStation";
-import { useAnalysesIndex } from "@/hooks/useStationData/useAnalysesIndex"; // Add this import
+import { useAnalysesIndex } from "@/hooks/useStationData/useAnalysesIndex";
 import StationsTable from "@/components/stations/StationsTable";
 import { StationForm } from "@/components/stations/StationForm";
 import TableActions from "@/components/stations/TableActions";
 import { EmptyState } from "@/components/stations/EmptyState";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { SortConfig } from "@/types/table";
+import { SortConfig, FilterConfig } from "@/types/table";
 import { StationWithDetails } from "@/types/station";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { getProprietaireName } from '@/utils/format';
+import { getCellValue } from '@/components/stations/StationsTable'; // Import getCellValue
+import { FilterTags } from '@/components/stations/FilterTags';
 
-// Add these type definitions after the imports
 interface FileSystemHandle {
   kind: 'file' | 'directory';
   name: string;
@@ -47,7 +47,6 @@ interface SaveFilePickerOptions {
   }>;
 }
 
-// Extend Window interface to include showSaveFilePicker
 interface ExtendedWindow extends Window {
   showSaveFilePicker?: (options?: SaveFilePickerOptions) => Promise<FileSystemFileHandle>;
 }
@@ -70,204 +69,102 @@ const exportToExcel = async (stations: StationWithDetails[], filename: string) =
     { header: 'Propriétaire', key: 'Proprietaire', width: 25 },
     { header: 'Gérant', key: 'Gerant', width: 20 },
     { header: 'CIN Gérant', key: 'CINGerant', width: 15 },
-    { header: 'Téléphone Gérant', key: 'TelephoneGerant', width: 20 },
+    { header: 'Téléphone', key: 'Telephone', width: 15 },
     { header: 'Adresse', key: 'Adresse', width: 30 },
-    { header: 'Province', key: 'Province', width: 20 },
-    { header: 'Commune', key: 'Commune', width: 20 },
-    { header: 'Latitude', key: 'Latitude', width: 15 },
-    { header: 'Longitude', key: 'Longitude', width: 15 },
+    { header: 'Province', key: 'NomProvince', width: 15 },
+    { header: 'Commune', key: 'NomCommune', width: 15 },
+    { header: 'Latitude', key: 'Latitude', width: 10 },
+    { header: 'Longitude', key: 'Longitude', width: 10 },
     { header: 'Type', key: 'Type', width: 15 },
-    { header: 'Capacité SSP (L)', key: 'CapaciteSSP', width: 20 },
-    { header: 'Capacité Gasoil (L)', key: 'CapaciteGasoil', width: 20 },
+    { header: 'Capacité SSP', key: 'CapaciteSSP', width: 15 },
+    { header: 'Capacité Gasoil', key: 'CapaciteGasoil', width: 15 },
     { header: 'Statut', key: 'Statut', width: 15 },
+    { header: 'Type de Gérance', key: 'TypeGerance', width: 15 },
+    { header: 'N° Création', key: 'NumeroCreation', width: 15 },
+    { header: 'Date Création', key: 'DateCreation', width: 15 },
+    { header: 'N° Mise en service', key: 'NumeroMiseEnService', width: 15 },
+    { header: 'Date Mise en service', key: 'DateMiseEnService', width: 15 },
+    { header: 'Commentaires', key: 'Commentaires', width: 30 },
+    { header: 'Nombre Volucompteur', key: 'NombreVolucompteur', width: 15 },
   ];
 
-  stations.forEach((s) => {
-    const capSSP = s.capacites.filter(c => c.TypeCarburant === 'SSP').reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0);
-    const capGasoil = s.capacites.filter(c => c.TypeCarburant === 'Gasoil').reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0);
-
+  stations.forEach(station => {
     worksheet.addRow({
-      Code: s.station.Code || '-',
-      Marque: s.marque?.Marque || '-',
-      RaisonSociale: s.marque?.RaisonSociale || '-',
-      NomStation: s.station.NomStation || '-',
-      Proprietaire: getProprietaireName(s),
-      Gerant: safeFullName(s.gerant?.PrenomGerant, s.gerant?.NomGerant),
-      CINGerant: s.gerant?.CINGerant || '-',
-      TelephoneGerant: s.gerant?.Telephone || '-',
-      Adresse: s.station.Adresse || '-',
-      Province: s.province?.NomProvince || '-',
-      Commune: s.commune?.NomCommune || '-',
-      Latitude: s.station.Latitude || '-',
-      Longitude: s.station.Longitude || '-',
-      Type: s.station.Type || '-',
-      CapaciteSSP: capSSP || '-',
-      CapaciteGasoil: capGasoil || '-',
-      Statut: s.station.Statut || '-',
+      Code: station.station.Code || '',
+      Marque: station.marque?.Marque || '',
+      RaisonSociale: station.marque?.RaisonSociale || '',
+      NomStation: station.station.NomStation || '',
+      Proprietaire: getProprietaireName(station) || '',
+      Gerant: safeFullName(station.gerant?.PrenomGerant, station.gerant?.NomGerant),
+      CINGerant: station.gerant?.CINGerant || '',
+      Telephone: station.gerant?.Telephone || '',
+      Adresse: station.station.Adresse || '',
+      NomProvince: station.province?.NomProvince || '',
+      NomCommune: station.commune?.NomCommune || '',
+      Latitude: station.station.Latitude || '',
+      Longitude: station.station.Longitude || '',
+      Type: station.station.Type || '',
+      CapaciteSSP: station.capacites
+        .filter(c => c.TypeCarburant === 'SSP')
+        .reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0),
+      CapaciteGasoil: station.capacites
+        .filter(c => c.TypeCarburant === 'Gasoil')
+        .reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0),
+      Statut: station.station.Statut || '',
+      TypeGerance: station.station.TypeGerance || '',
+      NumeroCreation: station.creationAutorisation?.NumeroAutorisation || '',
+      DateCreation: station.creationAutorisation?.DateAutorisation
+        ? new Date(station.creationAutorisation.DateAutorisation).toLocaleDateString()
+        : '',
+      NumeroMiseEnService: station.miseEnServiceAutorisation?.NumeroAutorisation || '',
+      DateMiseEnService: station.miseEnServiceAutorisation?.DateAutorisation
+        ? new Date(station.miseEnServiceAutorisation.DateAutorisation).toLocaleDateString()
+        : '',
+      Commentaires: station.station.Commentaires || '',
+      NombreVolucompteur: station.station.NombreVolucompteur || '',
     });
   });
 
-  worksheet.getRow(1).font = { bold: true };
-  worksheet.getRow(1).fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FFE5E5E5' },
-  };
-
   const buffer = await workbook.xlsx.writeBuffer();
-
-  // Try showSaveFilePicker for modern browsers
-  if (typeof window.showSaveFilePicker === 'function') {
-    try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: `${filename}.xlsx`,
-        types: [
-          {
-            description: 'Excel Spreadsheet',
-            accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] },
-          },
-        ],
-      });
-      const writable = await handle.createWritable();
-      await writable.write(buffer);
-      await writable.close();
-      return;
-    } catch (error) {
-      console.warn('showSaveFilePicker failed, falling back to saveAs:', error);
-    }
-  }
-
-  // Fallback to file-saver
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   saveAs(blob, `${filename}.xlsx`);
 };
 
 export default function StationsPage() {
-  const { stations, loading, error, refetch } = useStations();
-  const { deleteStation, loading: deleting } = useDeleteStation();
   const router = useRouter();
-
-  // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingStation, setEditingStation] = useState<StationWithDetails | undefined>(undefined);
-
-  // Search state
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Delete confirmation state
   const [stationToDelete, setStationToDelete] = useState<StationWithDetails | undefined>(undefined);
-
-  // Table state
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "NomStation", direction: "asc" });
-  const pageSize = 10;
-  const [currentPage, setCurrentPage] = useState<number>(1);
-
-  // Export state
-  const [isExporting, setIsExporting] = useState(false);
-  const [triggerExport, setTriggerExport] = useState(false);
-
-  // Add new state for analyse filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'Code', direction: 'asc' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [columnFilters, setColumnFilters] = useState<FilterConfig[]>([]);
   const [analysisStatus, setAnalysisStatus] = useState<'all' | 'analysed' | 'not-analysed'>('all');
   const [analysisYear, setAnalysisYear] = useState<number | 'all'>('all');
-  
-  // Get all station IDs
-  const stationIds = useMemo(() => stations.map(s => s.station.StationID), [stations]);
-  
-  // Use useAnalysesIndex hook
-  const { years, filterStationsByAnalysis, loading: analysesLoading } = useAnalysesIndex(stationIds);
+  const [triggerExport, setTriggerExport] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
-  // Update filtered stations to include analyse filtering
-  const filteredStations = useMemo(() => {
-    let filtered = stations;
-    
-    // Apply analyse filters
-    if (!analysesLoading) {
-      filtered = filterStationsByAnalysis(filtered, analysisStatus, analysisYear);
-    }
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((station) => {
-        return (
-          station.station.NomStation?.toLowerCase().includes(query) ||
-          station.commune?.NomCommune?.toLowerCase().includes(query) ||
-          station.province?.NomProvince?.toLowerCase().includes(query) ||
-          station.marque?.Marque?.toLowerCase().includes(query) ||
-          station.station.Adresse?.toLowerCase().includes(query)
-        );
-      });
-    }
-
-    return filtered;
-  }, [stations, searchQuery, analysisStatus, analysisYear, filterStationsByAnalysis, analysesLoading]);
-
-  // Sort filtered stations
-  const sortedStations = useMemo(() => {
-    const sorted = [...filteredStations];
-    sorted.sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
-
-      switch (sortConfig.key) {
-        case "NomStation":
-          aValue = a.station.NomStation;
-          bValue = b.station.NomStation;
-          break;
-        case "NomCommune":
-          aValue = a.commune?.NomCommune || '';
-          bValue = b.commune?.NomCommune || '';
-          break;
-        case "Marque":
-          aValue = a.marque?.Marque || '';
-          bValue = b.marque?.Marque || '';
-          break;
-        case "NomProvince":
-          aValue = a.province?.NomProvince || '';
-          bValue = b.province?.NomProvince || '';
-          break;
-        case "Adresse":
-          aValue = a.station.Adresse || '';
-          bValue = b.station.Adresse || '';
-          break;
-        default:
-          return 0;
-      }
-
-      if (aValue == null && bValue == null) return 0;
-      if (aValue == null) return sortConfig.direction === "asc" ? 1 : -1;
-      if (bValue == null) return sortConfig.direction === "asc" ? -1 : 1;
-
-      const aStr = String(aValue).toLowerCase();
-      const bStr = String(bValue).toLowerCase();
-
-      if (aStr < bStr) return sortConfig.direction === "asc" ? -1 : 1;
-      if (aStr > bStr) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
-    });
-    return sorted;
-  }, [filteredStations, sortConfig]);
-
-  // Calculate pagination
-  const totalPages = Math.max(1, Math.ceil(sortedStations.length / pageSize));
-  const validCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
+  const { stations, loading, error, refetch } = useStations();
+  const { deleteStation, loading: deleteLoading } = useDeleteStation();
+  const { analyses, loading: analysesLoading } = useAnalysesIndex(stations.map(s => s.station.StationID));
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
+    stations.forEach(s => {
+      s.analyses = analyses.filter(a => a.StationID === s.station.StationID);
+    });
+  }, [analyses, stations]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(totalPages, page)));
-  };
-
-  const handleSortChange = (config: SortConfig) => {
-    setSortConfig(config);
-    setCurrentPage(1);
-  };
-
-  const handleRowDoubleClick = (stationId: string) => {
-    router.push(`/stations/${stationId}`);
-  };
+  const years = useMemo(() => {
+    const uniqueYears = new Set<number>();
+    stations.forEach(s => {
+      s.analyses?.forEach(a => {
+        if (a.DateAnalyse) {
+          uniqueYears.add(new Date(a.DateAnalyse).getFullYear());
+        }
+      });
+    });
+    return Array.from(uniqueYears).sort((a, b) => b - a);
+  }, [stations]);
 
   const handleAddNew = () => {
     setEditingStation(undefined);
@@ -284,44 +181,170 @@ export default function StationsPage() {
   };
 
   const confirmDelete = async () => {
-    if (!stationToDelete?.station.StationID) return;
-    try {
-      await deleteStation(stationToDelete.station.StationID);
-      await refetch();
-      setStationToDelete(undefined);
-    } catch (error) {
-      console.error('Failed to delete station:', error);
+    if (stationToDelete) {
+      try {
+        await deleteStation(stationToDelete.station.StationID);
+        setStationToDelete(undefined); // Close dialog on success
+      } catch (err) {
+        // Error is already set by useDeleteStation hook (setError)
+        console.error('Deletion failed:', err);
+      }
     }
   };
 
-  const handleFormSaved = async () => {
+  const handleFormSaved = () => {
     setShowForm(false);
     setEditingStation(undefined);
-    await refetch();
+    refetch();
   };
 
-  const handleRefresh = async () => {
-    await refetch();
+  const handleSortChange = (config: SortConfig) => {
+    setSortConfig(config);
+    setCurrentPage(1);
   };
 
-  const handleExport = async (filteredStations: StationWithDetails[]) => {
-    if (isExporting) return; // Prevent multiple simultaneous exports
-    setIsExporting(true);
-    try {
-      await exportToExcel(filteredStations, 'Stations_Export');
-    } catch (error) {
-      console.error('Export failed:', error);
-      alert('Erreur lors de l’exportation. Veuillez réessayer.');
-    } finally {
-      setIsExporting(false);
-      setTriggerExport(false);
-    }
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleFilterChange = useCallback((key: string, value: string) => {
+    setColumnFilters(prev => {
+      const newFilters = prev.filter(filter => filter.key !== key);
+      if (value) {
+        newFilters.push({ key, value });
+      }
+      return newFilters;
+    });
+    setCurrentPage(1);
+  }, []);
+
+  const handleRefresh = () => {
+    refetch();
   };
 
   const handleExportTrigger = () => {
-    if (isExporting) return; // Prevent triggering during export
     setTriggerExport(true);
+    setIsExporting(true);
   };
+
+  const handleExport = (filteredStations: StationWithDetails[]) => {
+    exportToExcel(filteredStations, 'stations');
+    setTriggerExport(false);
+    setIsExporting(false);
+  };
+
+  const handleRowDoubleClick = (stationId: string) => {
+    router.push(`/stations/${stationId}`);
+  };
+
+  const globalFiltered = useMemo(() => {
+    let result = [...stations];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(s =>
+        s.station.NomStation?.toLowerCase().includes(query) ||
+        s.station.Adresse?.toLowerCase().includes(query) ||
+        s.marque?.Marque?.toLowerCase().includes(query) ||
+        s.commune?.NomCommune?.toLowerCase().includes(query) ||
+        s.province?.NomProvince?.toLowerCase().includes(query) ||
+        getProprietaireName(s)?.toLowerCase().includes(query) ||
+        safeFullName(s.gerant?.PrenomGerant, s.gerant?.NomGerant).toLowerCase().includes(query)
+      );
+    }
+
+    if (analysisStatus !== 'all') {
+      result = result.filter(s => {
+        const hasAnalyses = s.analyses && s.analyses.length > 0;
+        if (analysisStatus === 'analysed') {
+          if (!hasAnalyses) return false;
+          if (analysisYear !== 'all') {
+            return s.analyses.some(a => a.DateAnalyse && new Date(a.DateAnalyse).getFullYear() === analysisYear);
+          }
+          return hasAnalyses;
+        }
+        return !hasAnalyses;
+      });
+    }
+
+    return result;
+  }, [stations, searchQuery, analysisStatus, analysisYear]);
+
+  const allFiltered = useMemo(() => {
+    if (columnFilters.length === 0) return globalFiltered;
+
+    return globalFiltered.filter(s => 
+      columnFilters.every(filter => {
+        const value = getCellValue(s, filter.key).toLowerCase();
+        // Split the filter value by | to handle multiple selections
+        const filterValues = filter.value.toLowerCase().split('|');
+        return filterValues.some(filterValue => value.includes(filterValue));
+      })
+    );
+  }, [globalFiltered, columnFilters]);
+
+  const sortedStations = useMemo(() => {
+    const sorted = [...allFiltered];
+    sorted.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortConfig.key) {
+        case 'Code':
+          aValue = a.station.Code || 0;
+          bValue = b.station.Code || 0;
+          break;
+        case 'NomStation':
+          aValue = a.station.NomStation || '';
+          bValue = b.station.NomStation || '';
+          break;
+        case 'Adresse':
+          aValue = a.station.Adresse || '';
+          bValue = b.station.Adresse || '';
+          break;
+        case 'NomCommune':
+          aValue = a.commune?.NomCommune || '';
+          bValue = b.commune?.NomCommune || '';
+          break;
+        case 'NomProvince':
+          aValue = a.province?.NomProvince || '';
+          bValue = b.province?.NomProvince || '';
+          break;
+        case 'Marque':
+          aValue = a.marque?.Marque || '';
+          bValue = b.marque?.Marque || '';
+          break;
+        case 'Gerant':
+          aValue = safeFullName(a.gerant?.PrenomGerant, a.gerant?.NomGerant) || '';
+          bValue = safeFullName(b.gerant?.PrenomGerant, b.gerant?.NomGerant) || '';
+          break;
+        case 'Proprietaire':
+          aValue = getProprietaireName(a) || '';
+          bValue = getProprietaireName(b) || '';
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [allFiltered, sortConfig]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedStations.length / 7));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+
+  const handleResetAllFilters = useCallback(() => {
+    // Reset all filters
+    setColumnFilters([]);
+    setSearchQuery('');
+    setAnalysisStatus('all');
+    setAnalysisYear('all');
+    setCurrentPage(1);
+    setSortConfig({ key: 'Code', direction: 'asc' });
+  }, []);
 
   if (loading) {
     return (
@@ -353,17 +376,22 @@ export default function StationsPage() {
         onAddNew={handleAddNew}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        totalStations={stations.length}
+        totalStations={allFiltered.length}
         onRefresh={handleRefresh}
         onExport={handleExportTrigger}
         isExporting={isExporting}
-        // Add new props
         analysisStatus={analysisStatus}
         onAnalysisStatusChange={setAnalysisStatus}
         analysisYear={analysisYear}
         onAnalysisYearChange={setAnalysisYear}
         years={years}
         analysesLoading={analysesLoading}
+        onResetAllFilters={handleResetAllFilters}  // Add this new prop
+      />
+
+      <FilterTags 
+        filters={columnFilters} 
+        onRemoveFilter={(key) => handleFilterChange(key, '')} 
       />
 
       {showEmptyState ? (
@@ -375,6 +403,9 @@ export default function StationsPage() {
       ) : (
         <StationsTable
           stations={sortedStations}
+          fullStations={globalFiltered} // Added fullStations for filterValues
+          filters={columnFilters} // Added filters prop
+          onFilterChange={handleFilterChange} // Added onFilterChange prop
           onEdit={handleEdit}
           onDelete={handleDelete}
           sortConfig={sortConfig}
@@ -382,7 +413,7 @@ export default function StationsPage() {
           currentPage={validCurrentPage}
           totalPages={totalPages}
           onPageChange={handlePageChange}
-          pageSize={pageSize}
+          pageSize={7}
           onRowDoubleClick={handleRowDoubleClick}
           onExport={handleExport}
           triggerExport={triggerExport}
@@ -413,7 +444,7 @@ export default function StationsPage() {
         message={`Êtes-vous sûr de vouloir supprimer la station "${stationToDelete?.station.NomStation}" ? Cette action est irréversible.`}
         confirmText="Supprimer"
         cancelText="Annuler"
-        isLoading={deleting}
+        isLoading={deleteLoading}
         variant="danger"
       />
     </div>

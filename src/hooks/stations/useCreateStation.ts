@@ -268,7 +268,9 @@ export function useCreateStation() {
         CommuneID: communeId,
         GerantID: gerantId,
         ProprietaireID: proprietaireId || '',
-        TypeGerance: formData.TypeGerance
+        TypeGerance: formData.TypeGerance,
+        Commentaires: formData.Commentaires.trim() || '',
+        NombreVolucompteur: formData.NombreVolucompteur ? parseInt(formData.NombreVolucompteur) : 0,
       };
       console.log('Creating station with ProprietaireID:', proprietaireId);
       batch.set(stationRef, station);

@@ -16,7 +16,10 @@ npx tailwindcss init -p
 1-overview of code and files (security, delete, optimize)
 2- wrap authentification pages
 3- Limit API by user
-4- Add real Database
+
 5- Soft delete
-6- add autorisations to stationTable
-7- Search bar (doesn't delete text serched)
+6- Search bar (doesn't delete text serched)
+
+
+9 station form : --> overview form fields validations and style
+             

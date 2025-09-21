@@ -1,18 +1,20 @@
-// src/types/station.ts 
+// src/types/station.ts
 export type Station = {
   StationID: string;
-  Code: number;             
+  Code: number;
   NomStation: string;
   Adresse: string;
   Latitude: number;
   Longitude: number;
   Type: 'remplissage' | 'service';
   Statut: 'en activité' | 'en projet' | 'en arrêt' | 'archivé';
+  TypeGerance: 'libre' | 'direct' | 'partenariat';
+  NombreVolucompteur: number;
+  Commentaires: string;
   MarqueID: string;
   CommuneID: string;
   GerantID: string;
   ProprietaireID: string;
-  TypeGerance: 'libre' | 'direct' | 'partenariat';
 };
 
 export type Marque = {
@@ -60,7 +62,7 @@ export type ProprietaireMorale = {
 export type Autorisation = {
   AutorisationID: string;
   StationID: string;
-  TypeAutorisation: 'création' | 'mise en service' | 'transformation' | 'transfert' | 'changement de marques';
+  TypeAutorisation: 'création' | 'mise en service';
   NumeroAutorisation: string;
   DateAutorisation: Date | null;
 };
@@ -93,10 +95,11 @@ export type StationWithDetails = {
   };
   autorisations: Autorisation[];
   capacites: CapaciteStockage[];
-  analyses: Analyse[]; // <-- ADDED THIS LINE
+  analyses: Analyse[];
+  creationAutorisation?: Autorisation;
+  miseEnServiceAutorisation?: Autorisation;
 };
 
-// Form data type for creating/editing stations - FIXED
 export type StationFormData = {
   id?: string;
   NomStation: string;
@@ -104,41 +107,27 @@ export type StationFormData = {
   Latitude: string;
   Longitude: string;
   Type: 'remplissage' | 'service';
-  
-  // Marque
   Marque: string;
   RaisonSociale: string;
-  
-  // Location
   Province: string;
   Commune: string;
-  
-  // Manager
   PrenomGerant: string;
   NomGerant: string;
   CINGerant: string;
   Telephone: string;
-  
-  // Owner
   TypeProprietaire: 'Physique' | 'Morale';
   PrenomProprietaire: string;
   NomProprietaire: string;
   NomEntreprise: string;
-  
-  // --- MODIFIED: Autorisations is now an array ---
   autorisations: {
-    TypeAutorisation: 'création' | 'mise en service' | 'transformation' | 'transfert' | 'changement de marques';
+    TypeAutorisation: 'création' | 'mise en service';
     NumeroAutorisation: string;
     DateAutorisation: string;
   }[];
-  
-  // Capacities
   CapaciteGasoil: string;
   CapaciteSSP: string;
-  
-  // Type of Management
   TypeGerance: 'libre' | 'direct' | 'partenariat';
-
-  // Active or Inactive
   Statut: 'en activité' | 'en projet' | 'en arrêt' | 'archivé';
+  Commentaires: string;
+  NombreVolucompteur: string;
 };

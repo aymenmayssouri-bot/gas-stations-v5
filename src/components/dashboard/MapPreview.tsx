@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleMap, useLoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 import Link from 'next/link';
-import { StationWithDetails, ProprietairePhysique, ProprietaireMorale } from '@/types/station';
+import { StationWithDetails } from '@/types/station';
 import { getProprietaireName } from '@/utils/format';
 
 interface MapPreviewProps {
@@ -38,6 +38,41 @@ const mapStyles = [
   }
 ];
 
+// Palette of 30 distinct colors
+const colorPalette = [
+  '#ff0000', '#ff3200', '#ff6600', '#ff9900', '#ffcc00',
+  '#ffff00', '#cbff00', '#99ff00', '#65ff00', '#33ff00',
+  '#00ff00', '#00ff32', '#00ff66', '#00ff99', '#00ffcb',
+  '#00ffff', '#00cbff', '#0099ff', '#0066ff', '#0033ff',
+  '#0000ff', '#3200ff', '#6500ff', '#9900ff', '#cc00ff',
+  '#ff00ff', '#ff00cb', '#ff0098', '#ff0066', '#ff0033'
+];
+
+// Function to get a consistent color based on marque using hash
+function getColorForMarque(marque: string): string {
+  let hash = 0;
+  for (let i = 0; i < marque.length; i++) {
+    const char = marque.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0; // Convert to 32bit integer
+  }
+  const index = Math.abs(hash) % colorPalette.length;
+  return colorPalette[index];
+}
+
+// Function to get custom marker icon with default Google Maps pin shape
+function getMarkerIcon(marque: string): google.maps.Symbol {
+  const color = getColorForMarque(marque);
+  return {
+    path: window.google.maps.SymbolPath.CIRCLE, // Use default circle shape
+    fillColor: color,
+    fillOpacity: 1,
+    strokeWeight: 2,
+    strokeColor: '#ffffff',
+    scale: 8,
+  };
+}
+
 export default function MapPreview({ stations }: MapPreviewProps) {
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
@@ -53,17 +88,17 @@ export default function MapPreview({ stations }: MapPreviewProps) {
     fullscreenControl: true,
     zoomControl: true,
     styles: mapStyles,
-    minZoom: 3,        // Reduced from 5 to allow more dezoom
+    minZoom: 3,
     maxZoom: 18,
     restriction: {
       latLngBounds: {
-        north: 45.0,   // Increased to allow more view
-        south: 20.0,   // Decreased to allow more view
-        west: -20.0,   // Increased to allow more view
-        east: 5.0      // Increased to allow more view
+        north: 45.0,
+        south: 20.0,
+        west: -20.0,
+        east: 5.0,
       },
-      strictBounds: false  // Changed to false to make bounds more flexible
-    }
+      strictBounds: false,
+    },
   }), []);
 
   const onLoad = useCallback((map: google.maps.Map) => {
@@ -104,7 +139,7 @@ export default function MapPreview({ stations }: MapPreviewProps) {
       zoom={6}
       center={center}
       onLoad={onLoad}
-      options={mapOptions} // Apply the customized options here
+      options={mapOptions}
     >
       {stations.map((s) =>
         s.station.Latitude && s.station.Longitude ? (
@@ -112,6 +147,7 @@ export default function MapPreview({ stations }: MapPreviewProps) {
             key={s.station.StationID}
             position={{ lat: s.station.Latitude, lng: s.station.Longitude }}
             onClick={() => setSelected(s)}
+            icon={getMarkerIcon(s.marque.Marque)}
           />
         ) : null
       )}
@@ -126,6 +162,9 @@ export default function MapPreview({ stations }: MapPreviewProps) {
             <div className="text-xs text-gray-600 mb-2">{selected.station.Adresse}</div>
 
             <div className="space-y-1 text-sm">
+              <div>
+                <strong>Code:</strong> {selected.station.Code}
+              </div>
               <div>
                 <strong>Marque:</strong> {selected.marque.Marque}
               </div>

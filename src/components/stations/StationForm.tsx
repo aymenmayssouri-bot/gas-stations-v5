@@ -1,5 +1,4 @@
 // src/components/stations/StationForm.tsx
-
 'use client';
 
 import React, { useMemo } from 'react';
@@ -7,6 +6,7 @@ import { StationWithDetails, StationFormData } from '@/types/station';
 import { useStationForm } from '@/hooks/stations/useStationForm';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { useMarques } from '@/hooks/ReferenceData/useMarques';
 import { useProvinces } from '@/hooks/ReferenceData/useProvinces';
@@ -28,7 +28,6 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
   }, [form.Province, provinces]);
   const { communes } = useCommunes(selectedProvinceId);
 
-  // Memoized value for RaisonSociale
   const selectedMarqueRaisonSociale = useMemo(() => {
     const selectedMarque = marques.find(m => m.Marque === form.Marque);
     return selectedMarque?.RaisonSociale || '';
@@ -42,7 +41,6 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
     }
   };
 
-  // Ensure autorisations is always an array
   const autorisations = form.autorisations ?? [];
 
   return (
@@ -51,48 +49,47 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
 
       {/* General Information */}
       <fieldset className="space-y-6">
-        <legend className="text-lg font-semibold border-b pb-2 w-full">
-          Informations Générales
+        <legend className="form.station-form fieldset .station-form-legend !text-lg !font-semibold border-b pb-2 w-full text-gray-900 !important">
+          <span className="text-gray-900 !important">Informations Générales</span>
         </legend>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input 
-            label="Nom de la station" 
-            name="NomStation" 
-            value={form.NomStation} 
-            onChange={(e) => updateField('NomStation', e.target.value)} 
+          <Input
+            label="Nom de la station"
+            name="NomStation"
+            value={form.NomStation || ''}
+            onChange={(e) => updateField('NomStation', e.target.value)}
             error={errors.NomStation}
           />
-          <Input 
-            label="Adresse" 
-            name="Adresse" 
-            value={form.Adresse} 
-            onChange={(e) => updateField('Adresse', e.target.value)} 
+          <Input
+            label="Adresse"
+            name="Adresse"
+            value={form.Adresse || ''}
+            onChange={(e) => updateField('Adresse', e.target.value)}
             error={errors.Adresse}
           />
-          <Input 
-            label="Latitude" 
-            name="Latitude" 
+          <Input
+            label="Latitude"
+            name="Latitude"
             type="number"
             step="any"
-            value={form.Latitude} 
-            onChange={(e) => updateField('Latitude', e.target.value)} 
+            value={form.Latitude || '0'}
+            onChange={(e) => updateField('Latitude', e.target.value)}
             error={errors.Latitude}
           />
-          <Input 
-            label="Longitude" 
-            name="Longitude" 
+          <Input
+            label="Longitude"
+            name="Longitude"
             type="number"
             step="any"
-            value={form.Longitude} 
-            onChange={(e) => updateField('Longitude', e.target.value)} 
+            value={form.Longitude || '0'}
+            onChange={(e) => updateField('Longitude', e.target.value)}
             error={errors.Longitude}
           />
-          {/* New fields for Type de Gérance and Statut */}
           <div className="flex flex-col">
             <label className="text-sm font-medium text-gray-900 mb-1">Type de Gérance</label>
             <select
-              className="border border-gray-300 rounded-md px-3 py-2"
-              value={form.TypeGerance}
+              className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={form.TypeGerance || 'libre'}
               onChange={(e) => updateField('TypeGerance', e.target.value)}
             >
               <option value="libre">Libre</option>
@@ -103,8 +100,8 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
           <div className="flex flex-col">
             <label className="text-sm font-medium text-gray-900 mb-1">Statut</label>
             <select
-              className="border border-gray-300 rounded-md px-3 py-2"
-              value={form.Statut}
+              className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={form.Statut || 'en activité'}
               onChange={(e) => updateField('Statut', e.target.value)}
             >
               <option value="en activité">En activité</option>
@@ -113,6 +110,23 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
               <option value="archivé">Archivé</option>
             </select>
           </div>
+          <Textarea
+            label="Commentaires"
+            name="Commentaires"
+            value={form.Commentaires || ''}
+            onChange={(e) => updateField('Commentaires', e.target.value)}
+            error={errors.Commentaires}
+            rows={4}
+          />
+          <Input
+            label="Nombre Volucompteur"
+            name="NombreVolucompteur"
+            type="number"
+            min="0"
+            value={form.NombreVolucompteur || '0'}
+            onChange={(e) => updateField('NombreVolucompteur', e.target.value)}
+            error={errors.NombreVolucompteur}
+          />
         </div>
       </fieldset>
 
@@ -126,26 +140,26 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
             <label className="text-sm font-medium text-gray-900 mb-1">Type</label>
             <select
               className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={form.Type}
+              value={form.Type || 'service'}
               onChange={(e) => updateField('Type', e.target.value as StationFormData['Type'])}
             >
-              <option value="service">Service</option>
-              <option value="remplissage">Remplissage</option>
+              <option value="service">service</option>
+              <option value="remplissage">remplissage</option>
             </select>
             {errors.Type && <span className="text-red-600 text-xs mt-1">{errors.Type}</span>}
           </div>
           <div className="flex flex-col">
-            <label className="mb-1 text-sm font-medium text-gray-900">Marque</label>
+            <label className="text-sm font-medium text-gray-900 mb-1">Marque</label>
             <select
               name="Marque"
-              value={form.Marque}
+              value={form.Marque || ''}
               onChange={(e) => {
                 const selectedValue = e.target.value;
                 const selectedMarque = marques.find(m => m.Marque === selectedValue);
                 updateField('Marque', selectedValue);
                 updateField('RaisonSociale', selectedMarque?.RaisonSociale || '');
               }}
-              className="p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">-- choisir --</option>
               {marques.map((m) => (
@@ -156,22 +170,20 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
             </select>
             {errors.Marque && <ErrorMessage message={errors.Marque} />}
           </div>
-          <div className="flex flex-col">
-            <Input
-              label="Raison Sociale"
-              name="RaisonSociale"
-              value={selectedMarqueRaisonSociale}
-              readOnly
-              disabled={true}
-              className="bg-gray-100 cursor-not-allowed"
-              error={errors.RaisonSociale}
-            />
-          </div>
+          <Input
+            label="Raison Sociale"
+            name="RaisonSociale"
+            value={selectedMarqueRaisonSociale}
+            readOnly
+            disabled
+            className="bg-gray-100 cursor-not-allowed"
+            error={errors.RaisonSociale}
+          />
           <div className="flex flex-col">
             <label className="text-sm font-medium text-gray-900 mb-1">Province</label>
             <select
               className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={form.Province}
+              value={form.Province || ''}
               onChange={(e) => updateField('Province', e.target.value)}
             >
               <option value="">-- choisir --</option>
@@ -185,7 +197,7 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
             <label className="text-sm font-medium text-gray-900 mb-1">Commune</label>
             <select
               className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={form.Commune}
+              value={form.Commune || ''}
               onChange={(e) => updateField('Commune', e.target.value)}
               disabled={!selectedProvinceId}
             >
@@ -205,35 +217,35 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
           <span className="text-gray-900 !important">Gérant</span>
         </legend>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input 
-            label="Prénom du gérant" 
-            name="PrenomGerant" 
-            value={form.PrenomGerant} 
-            onChange={(e) => updateField('PrenomGerant', e.target.value)} 
+          <Input
+            label="Prénom du gérant"
+            name="PrenomGerant"
+            value={form.PrenomGerant || ''}
+            onChange={(e) => updateField('PrenomGerant', e.target.value)}
             error={errors.PrenomGerant}
           />
-          <Input 
-            label="Nom du gérant" 
-            name="NomGerant" 
-            value={form.NomGerant} 
-            onChange={(e) => updateField('NomGerant', e.target.value)} 
+          <Input
+            label="Nom du gérant"
+            name="NomGerant"
+            value={form.NomGerant || ''}
+            onChange={(e) => updateField('NomGerant', e.target.value)}
             error={errors.NomGerant}
           />
-          <Input 
-            label="CIN du gérant" 
-            name="CINGerant" 
-            value={form.CINGerant} 
-            onChange={(e) => updateField('CINGerant', e.target.value)} 
+          <Input
+            label="CIN du gérant"
+            name="CINGerant"
+            value={form.CINGerant || ''}
+            onChange={(e) => updateField('CINGerant', e.target.value)}
             error={errors.CINGerant}
-            readOnly={mode === 'edit'} // CHANGE: Make CINGerant read-only in edit mode
+            readOnly={mode === 'edit'}
             disabled={mode === 'edit'}
             className={mode === 'edit' ? 'bg-gray-100 cursor-not-allowed' : ''}
           />
-          <Input 
-            label="Téléphone" 
-            name="Telephone" 
-            value={form.Telephone} 
-            onChange={(e) => updateField('Telephone', e.target.value)} 
+          <Input
+            label="Téléphone"
+            name="Telephone"
+            value={form.Telephone || ''}
+            onChange={(e) => updateField('Telephone', e.target.value)}
             error={errors.Telephone}
           />
         </div>
@@ -249,8 +261,8 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
             <label className="text-sm font-medium text-gray-900 mb-1">Type de propriétaire</label>
             <select
               className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={form.TypeProprietaire}
-              onChange={(e) => updateField('TypeProprietaire', e.target.value as StationFormData['TypeProprietaire'])}
+              value={form.TypeProprietaire || 'Physique'}
+              onChange={(e) => updateField('TypeProprietaire', e.target.value)}
             >
               <option value="Physique">Physique</option>
               <option value="Morale">Morale</option>
@@ -259,27 +271,27 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
           </div>
           {form.TypeProprietaire === 'Physique' ? (
             <>
-              <Input 
-                label="Prénom du propriétaire" 
-                name="PrenomProprietaire" 
-                value={form.PrenomProprietaire} 
-                onChange={(e) => updateField('PrenomProprietaire', e.target.value)} 
+              <Input
+                label="Prénom du propriétaire"
+                name="PrenomProprietaire"
+                value={form.PrenomProprietaire || ''}
+                onChange={(e) => updateField('PrenomProprietaire', e.target.value)}
                 error={errors.PrenomProprietaire}
               />
-              <Input 
-                label="Nom du propriétaire" 
-                name="NomProprietaire" 
-                value={form.NomProprietaire} 
-                onChange={(e) => updateField('NomProprietaire', e.target.value)} 
+              <Input
+                label="Nom du propriétaire"
+                name="NomProprietaire"
+                value={form.NomProprietaire || ''}
+                onChange={(e) => updateField('NomProprietaire', e.target.value)}
                 error={errors.NomProprietaire}
               />
             </>
           ) : (
-            <Input 
-              label="Nom de l'entreprise (morale)" 
-              name="NomEntreprise" 
-              value={form.NomEntreprise} 
-              onChange={(e) => updateField('NomEntreprise', e.target.value)} 
+            <Input
+              label="Nom de l'entreprise (morale)"
+              name="NomEntreprise"
+              value={form.NomEntreprise || ''}
+              onChange={(e) => updateField('NomEntreprise', e.target.value)}
               error={errors.NomEntreprise}
             />
           )}
@@ -297,27 +309,24 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
               <div className="flex flex-col">
                 <label className="text-sm font-medium text-gray-900 mb-1">Type</label>
                 <select
-                  className="border border-gray-300 rounded-md px-3 py-2"
-                  value={auto.TypeAutorisation}
+                  className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={auto.TypeAutorisation || 'création'}
                   onChange={(e) => updateAutorisationField(index, 'TypeAutorisation', e.target.value)}
                 >
                   <option value="création">Création</option>
-                  <option value="mise en service">mise en service</option>
-                  <option value="transformation">Transformation</option>
-                  <option value="transfert">Transfert</option>
-                  <option value="changement de marques">Changement de marques</option>
+                  <option value="mise en service">Mise en service</option>
                 </select>
               </div>
-              <Input 
-                label="Numéro" 
-                value={auto.NumeroAutorisation} 
-                onChange={(e) => updateAutorisationField(index, 'NumeroAutorisation', e.target.value)} 
+              <Input
+                label="Numéro"
+                value={auto.NumeroAutorisation || ''}
+                onChange={(e) => updateAutorisationField(index, 'NumeroAutorisation', e.target.value)}
               />
-              <Input 
-                type="date" 
-                label="Date" 
-                value={auto.DateAutorisation} 
-                onChange={(e) => updateAutorisationField(index, 'DateAutorisation', e.target.value)} 
+              <Input
+                type="date"
+                label="Date"
+                value={auto.DateAutorisation || ''}
+                onChange={(e) => updateAutorisationField(index, 'DateAutorisation', e.target.value)}
               />
               {autorisations.length > 1 && (
                 <div className="flex items-end">
@@ -331,9 +340,11 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
         ) : (
           <p className="text-sm text-gray-500">Aucune autorisation enregistrée.</p>
         )}
-        <Button type="button" variant="secondary" onClick={addAutorisation}>
-          Ajouter une autre autorisation
-        </Button>
+        {autorisations.length < 2 && (
+          <Button type="button" variant="secondary" onClick={addAutorisation}>
+            Ajouter une autre autorisation
+          </Button>
+        )}
       </fieldset>
 
       {/* Capacités de Stockage */}
@@ -342,20 +353,22 @@ export function StationForm({ mode, station, onSaved }: StationFormProps) {
           <span className="text-gray-900 !important">Capacités de Stockage</span>
         </legend>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input 
-            label="Capacité Gasoil (Tonnes)" 
-            name="CapaciteGasoil" 
+          <Input
+            label="Capacité Gasoil (Tonnes)"
+            name="CapaciteGasoil"
             type="number"
-            value={form.CapaciteGasoil} 
-            onChange={(e) => updateField('CapaciteGasoil', e.target.value)} 
+            min="0"
+            value={form.CapaciteGasoil || '0'}
+            onChange={(e) => updateField('CapaciteGasoil', e.target.value)}
             error={errors.CapaciteGasoil}
           />
-          <Input 
-            label="Capacité SSP (Tonnes)" 
-            name="CapaciteSSP" 
+          <Input
+            label="Capacité SSP (Tonnes)"
+            name="CapaciteSSP"
             type="number"
-            value={form.CapaciteSSP} 
-            onChange={(e) => updateField('CapaciteSSP', e.target.value)} 
+            min="0"
+            value={form.CapaciteSSP || '0'}
+            onChange={(e) => updateField('CapaciteSSP', e.target.value)}
             error={errors.CapaciteSSP}
           />
         </div>

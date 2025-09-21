@@ -1,4 +1,4 @@
-// src/app/(authenticated)/stations/[id]/page.tsx
+// src/app/stations/[id]/page.tsx
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -15,7 +15,6 @@ import AnalyseTable from '@/components/stations/AnalyseTable';
 import AnalyseForm from '@/components/stations/AnalyseForm';
 import { useDeleteStation } from '@/hooks/stations/useDeleteStation';
 
-// Dynamically import Map (to avoid SSR issues)
 const GoogleMap = dynamic(() => import('@/components/dashboard/MapPreview'), { ssr: false });
 
 export default function StationDetailPage() {
@@ -24,19 +23,14 @@ export default function StationDetailPage() {
   const { stations, loading: stationsLoading, error: stationsError, refetch } = useStations();
   const { analyses, loading: analysesLoading, error: analysesError, refetch: refetchAnalyses } = useAnalysesIndex(id);
   const { deleteStation, loading: deleteLoading } = useDeleteStation();
-  
+
   const [station, setStation] = useState<StationWithDetails | null>(null);
-  
-  // Modal states
   const [showStationForm, setShowStationForm] = useState(false);
   const [editingStation, setEditingStation] = useState<StationWithDetails | undefined>(undefined);
-  
-  // Analysis modal states
   const [showAnalyseForm, setShowAnalyseForm] = useState(false);
   const [analyseFormMode, setAnalyseFormMode] = useState<'create' | 'edit'>('create');
   const [editingAnalyse, setEditingAnalyse] = useState<Analyse | undefined>(undefined);
 
-  // Get analyses for current station
   const stationAnalyses = analyses || [];
 
   useEffect(() => {
@@ -46,54 +40,47 @@ export default function StationDetailPage() {
     }
   }, [stations, id]);
 
-  // Handler to open the station edit form
   const handleEditStation = () => {
     setEditingStation(station || undefined);
     setShowStationForm(true);
   };
 
-  // Handler for station form save
   const handleStationFormSaved = async () => {
     setShowStationForm(false);
     setEditingStation(undefined);
     await refetch();
   };
 
-  // Handler to open analysis create form
   const handleCreateAnalyse = () => {
     setAnalyseFormMode('create');
     setEditingAnalyse(undefined);
     setShowAnalyseForm(true);
   };
 
-  // Handler to open analysis edit form
   const handleEditAnalyse = (analyse: Analyse) => {
     setAnalyseFormMode('edit');
     setEditingAnalyse(analyse);
     setShowAnalyseForm(true);
   };
 
-  // Handler for analysis form save
   const handleAnalyseFormSaved = async () => {
     setShowAnalyseForm(false);
     setEditingAnalyse(undefined);
     await refetchAnalyses();
   };
 
-  // Handler for analysis form cancel
   const handleAnalyseFormCancel = () => {
     setShowAnalyseForm(false);
     setEditingAnalyse(undefined);
   };
 
-  // Delete handler
   const handleDelete = async () => {
     if (!station || deleteLoading) return;
-    
-    if (!confirm("Est ce que vous êtes sûr de vouloir supprimer cette station ?")) {
+
+    if (!confirm("Est-ce que vous êtes sûr de vouloir supprimer cette station ?")) {
       return;
     }
-    
+
     try {
       await deleteStation(station.station.StationID);
       router.push('/stations');
@@ -151,25 +138,52 @@ export default function StationDetailPage() {
             <div><strong>Code:</strong> {station.station.Code || 'N/A'}</div>
             <div><strong>Nom de la station:</strong> {station.station.NomStation}</div>
             <div><strong>Statut:</strong> <span className="capitalize">{station.station.Statut || 'N/A'}</span></div>
-            
             <div><strong>Marque:</strong> {station.marque.Marque}</div>
             <div><strong>Raison Sociale:</strong> {station.marque.RaisonSociale || 'N/A'}</div>
             <div><strong>Type:</strong> <span className="capitalize">{station.station.Type}</span></div>
-            
             <div><strong>Propriétaire:</strong> {getProprietaireName(station)}</div>
             <div className="col-span-2"><strong>Gérant:</strong> {station.gerant.fullName} (CIN: {station.gerant.CINGerant || 'N/A'}, Tél: {station.gerant.Telephone || 'N/A'})</div>
             <div><strong>Type de Gérance:</strong> <span className="capitalize">{station.station.TypeGerance}</span></div>
-            
             <div className="col-span-3 border-t pt-4 mt-2"><strong>Adresse:</strong> {station.station.Adresse}</div>
             <div><strong>Province:</strong> {station.province.NomProvince}</div>
             <div><strong>Commune:</strong> {station.commune.NomCommune}</div>
-            <div/>
-            
             <div><strong>Latitude:</strong> {station.station.Latitude}</div>
             <div><strong>Longitude:</strong> {station.station.Longitude}</div>
+            <div><strong>Commentaire:</strong> {station.station.Commentaires || 'N/A'}</div>
+            <div><strong>Nombre Volucompteur:</strong> {station.station.NombreVolucompteur ?? 'N/A'}</div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Autorisations */}
+      {(station.autorisations?.length > 0 || station.creationAutorisation || station.miseEnServiceAutorisation) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Autorisations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pl-6 text-sm">
+              {station.creationAutorisation && (
+                <li>
+                  Création – N° {station.creationAutorisation.NumeroAutorisation} (du {formatDate(station.creationAutorisation.DateAutorisation)})
+                </li>
+              )}
+              {station.miseEnServiceAutorisation && (
+                <li>
+                  Mise en service – N° {station.miseEnServiceAutorisation.NumeroAutorisation} (du {formatDate(station.miseEnServiceAutorisation.DateAutorisation)})
+                </li>
+              )}
+              {station.autorisations
+                .filter(a => a.TypeAutorisation !== 'création' && a.TypeAutorisation !== 'mise en service')
+                .map((a) => (
+                  <li key={a.AutorisationID}>
+                    {a.TypeAutorisation} – N° {a.NumeroAutorisation} (du {formatDate(a.DateAutorisation)})
+                  </li>
+                ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Capacités */}
       {station.capacites?.length > 0 && (
@@ -181,7 +195,7 @@ export default function StationDetailPage() {
             <ul className="list-disc pl-6 text-sm">
               {station.capacites.map((c) => (
                 <li key={c.CapaciteID}>
-                  {c.TypeCarburant} – {c.CapaciteLitres.toLocaleString('fr-FR')} litres
+                  {c.TypeCarburant} – {c.CapaciteLitres.toLocaleString('fr-FR')} tonnes
                 </li>
               ))}
             </ul>
@@ -189,81 +203,49 @@ export default function StationDetailPage() {
         </Card>
       )}
 
-      {/* Autorisations */}
-      {station.autorisations?.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Autorisations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc pl-6 text-sm">
-              {station.autorisations.map((a) => (
-                <li key={a.AutorisationID}>
-                  {a.TypeAutorisation} – N° {a.NumeroAutorisation} (du {formatDate(a.DateAutorisation)})
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Analyses Table */}
-      <Card>
-        <CardHeader className="flex justify-between items-center">
-          <CardTitle>Analyses</CardTitle>
-          <Button onClick={handleCreateAnalyse} size="sm">
-            Nouvelle Analyse
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <AnalyseTable 
-            analyses={stationAnalyses}
-            loading={analysesLoading}
-            error={analysesError}
-            onEdit={handleEditAnalyse}
-            onRefresh={refetchAnalyses}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Map */}
-      {station.station.Latitude && station.station.Longitude && (
+      {/* Localisation */}
+      {(station.station.Latitude || station.station.Longitude) && (
         <Card>
           <CardHeader>
             <CardTitle>Localisation</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-80">
+            <div style={{ height: '400px', width: '100%' }}>
               <GoogleMap stations={[station]} />
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Station Edit Modal */}
-      <Modal
-        isOpen={showStationForm}
-        onClose={() => {
-          setShowStationForm(false);
-          setEditingStation(undefined);
-        }}
-        title="Modifier la station"
-        size="xl"
-      >
+      {/* Analyses */}
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle>Analyses</CardTitle>
+            <Button onClick={handleCreateAnalyse}>Ajouter une analyse</Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {analysesLoading && <LoadingSpinner />}
+          {analysesError && <ErrorMessage message={analysesError} />}
+          {!analysesLoading && !analysesError && (
+            <AnalyseTable
+              analyses={stationAnalyses}
+              onEdit={handleEditAnalyse}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <Modal isOpen={showStationForm} onClose={() => setShowStationForm(false)} size="lg">
         <StationForm
-          mode="edit"
+          mode={editingStation ? 'edit' : 'create'}
           station={editingStation}
           onSaved={handleStationFormSaved}
         />
       </Modal>
 
-      {/* Analysis Form Modal */}
-      <Modal
-        isOpen={showAnalyseForm}
-        onClose={handleAnalyseFormCancel}
-        title={analyseFormMode === 'create' ? 'Nouvelle Analyse' : 'Modifier l\'Analyse'}
-        size="lg"
-      >
+      <Modal isOpen={showAnalyseForm} onClose={handleAnalyseFormCancel}>
         <AnalyseForm
           mode={analyseFormMode}
           stationId={id}

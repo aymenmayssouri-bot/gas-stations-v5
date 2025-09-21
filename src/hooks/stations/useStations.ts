@@ -1,4 +1,4 @@
-// src/hooks/stations/useStations.ts
+
 import { useEffect, useState, useCallback } from 'react';
 import {
   collection,
@@ -7,6 +7,8 @@ import {
   getDoc,
   query,
   where,
+  documentId,
+  FirestoreDataConverter,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import {
@@ -21,7 +23,7 @@ import {
   ProprietaireMorale,
   Autorisation,
   CapaciteStockage,
-  Analyse, // ADD THIS IMPORT
+  Analyse,
 } from '@/types/station';
 import {
   stationConverter,
@@ -34,10 +36,79 @@ import {
   proprietaireMoraleConverter,
   autorisationConverter,
   capaciteConverter,
-  analyseConverter, // ADD THIS IMPORT
+  analyseConverter,
 } from '@/lib/firebase/converters';
-
 import { COLLECTIONS } from '@/lib/firebase/collections';
+
+// HELPER: Chunks an array into smaller arrays of a specified size.
+function chunk<T>(arr: T[], size = 10): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
+  }
+  return out;
+}
+
+// HELPER: Fetches documents in batches using their document IDs.
+async function fetchDocsByIds<T>(
+  collectionName: string,
+  ids: string[],
+  converter: FirestoreDataConverter<T>
+): Promise<T[]> {
+  if (ids.length === 0) return [];
+  const idChunks = chunk(ids.filter(Boolean));
+  const promises = idChunks.map((ch) =>
+    getDocs(
+      query(
+        collection(db, collectionName).withConverter(converter),
+        where(documentId(), 'in', ch)
+      )
+    )
+  );
+  const snaps = await Promise.all(promises);
+  return snaps.flatMap((s) => s.docs.map((d) => d.data()));
+}
+
+// HELPER: Fetches documents from a collection that are related to a list of station IDs.
+async function fetchByStationField<T>(
+  collectionName: string,
+  stationIds: string[],
+  converter: FirestoreDataConverter<T>
+): Promise<T[]> {
+  if (stationIds.length === 0) return [];
+  const chunks = chunk(stationIds);
+  const results: T[] = [];
+  for (const ch of chunks) {
+    const snaps = await getDocs(
+      query(
+        collection(db, collectionName).withConverter(converter),
+        where('StationID', 'in', ch)
+      )
+    );
+    results.push(...snaps.docs.map((d) => d.data()));
+  }
+  return results;
+}
+
+// HELPER: Fetches proprietaire details (Physique/Morale) by their ProprietaireID.
+async function fetchProprietaireDetails<T>(
+  collectionName: string,
+  propIds: string[],
+  converter: FirestoreDataConverter<T>
+): Promise<T[]> {
+  if (propIds.length === 0) return [];
+  const chunks = chunk(propIds);
+  const promises = chunks.map((ch) =>
+    getDocs(
+      query(
+        collection(db, collectionName).withConverter(converter),
+        where('ProprietaireID', 'in', ch)
+      )
+    )
+  );
+  const snaps = await Promise.all(promises);
+  return snaps.flatMap((s) => s.docs.map((d) => d.data()));
+}
 
 export function useStations() {
   const [stations, setStations] = useState<StationWithDetails[]>([]);
@@ -49,155 +120,120 @@ export function useStations() {
     setError(null);
 
     try {
-      // ✅ Load base stations with converter
+      // 1. Load base stations
       const stationsSnap = await getDocs(
         collection(db, COLLECTIONS.STATIONS).withConverter(stationConverter)
       );
       const baseStations: Station[] = stationsSnap.docs.map((d) => d.data());
 
-      const results: StationWithDetails[] = [];
+      // 2. Collect all unique IDs for batch fetching
+      const marqueIDs = [...new Set(baseStations.map((s) => s.MarqueID).filter(Boolean) as string[])];
+      const communeIDs = [...new Set(baseStations.map((s) => s.CommuneID).filter(Boolean) as string[])];
+      const gerantIDs = [...new Set(baseStations.map((s) => s.GerantID).filter(Boolean) as string[])];
+      const proprietaireIDs = [...new Set(baseStations.map((s) => s.ProprietaireID).filter(Boolean) as string[])];
+      const stationIDs = baseStations.map((s) => s.StationID);
 
-      for (const station of baseStations) {
-        // ✅ Parallel fetches with converters - ADD analysesSnap
-        const [
-          marqueDoc,
-          communeDoc,
-          gerantDoc,
-          proprietaireBaseDoc,
-          autorisationsSnap,
-          capacitesSnap,
-          analysesSnap, 
-        ] = await Promise.all([
-          station.MarqueID
-            ? getDoc(
-                doc(db, COLLECTIONS.MARQUES, station.MarqueID).withConverter(marqueConverter)
-              )
-            : Promise.resolve(null),
-          station.CommuneID
-            ? getDoc(
-                doc(db, COLLECTIONS.COMMUNES, station.CommuneID).withConverter(communeConverter)
-              )
-            : Promise.resolve(null),
-          station.GerantID
-            ? getDoc(
-                doc(db, COLLECTIONS.GERANTS, station.GerantID).withConverter(gerantConverter)
-              )
-            : Promise.resolve(null),
-          station.ProprietaireID
-            ? getDoc(
-                doc(db, COLLECTIONS.PROPRIETAIRES, station.ProprietaireID).withConverter(proprietaireConverter)
-              )
-            : Promise.resolve(null),
-          getDocs(
-            query(
-              collection(db, COLLECTIONS.AUTORISATIONS).withConverter(autorisationConverter),
-              where('StationID', '==', station.StationID)
-            )
-          ),
-          getDocs(
-            query(
-              collection(db, COLLECTIONS.CAPACITES_STOCKAGE).withConverter(capaciteConverter),
-              where('StationID', '==', station.StationID)
-            )
-          ),
-          getDocs( 
-            query(
-              collection(db, COLLECTIONS.ANALYSES).withConverter(analyseConverter),
-              where('StationID', '==', station.StationID)
-            )
-          ),
+      // 3. Fetch related documents in parallel batches
+      const [marques, communes, gerants, proprietairesBase, autorisationsAll, capacitesAll, analysesAll] =
+        await Promise.all([
+          fetchDocsByIds<Marque>(COLLECTIONS.MARQUES, marqueIDs, marqueConverter),
+          fetchDocsByIds<Commune>(COLLECTIONS.COMMUNES, communeIDs, communeConverter),
+          fetchDocsByIds<Gerant>(COLLECTIONS.GERANTS, gerantIDs, gerantConverter),
+          fetchDocsByIds<Proprietaire>(COLLECTIONS.PROPRIETAIRES, proprietaireIDs, proprietaireConverter),
+          fetchByStationField<Autorisation>(COLLECTIONS.AUTORISATIONS, stationIDs, autorisationConverter),
+          fetchByStationField<CapaciteStockage>(COLLECTIONS.CAPACITES_STOCKAGE, stationIDs, capaciteConverter),
+          fetchByStationField<Analyse>(COLLECTIONS.ANALYSES, stationIDs, analyseConverter),
         ]);
 
-        // ✅ Build related objects safely
-        const marque: Marque = marqueDoc?.exists()
-          ? marqueDoc.data()
-          : { MarqueID: '', Marque: 'Unknown', RaisonSociale: '' };
+      // 4. Handle dependent fetches (Provinces and Proprietaire details)
+      const provinceIDs = [...new Set(communes.map((c) => c.ProvinceID).filter(Boolean))];
+      const physiquePropIds = proprietairesBase.filter((p) => p.TypeProprietaire === 'Physique').map((p) => p.ProprietaireID);
+      const moralePropIds = proprietairesBase.filter((p) => p.TypeProprietaire === 'Morale').map((p) => p.ProprietaireID);
 
-        const commune: Commune = communeDoc?.exists()
-          ? communeDoc.data()
-          : { CommuneID: '', NomCommune: 'Unknown', ProvinceID: '' };
+      const [provinces, proprietairesPhysiques, proprietairesMorales] = await Promise.all([
+        fetchDocsByIds<Province>(COLLECTIONS.PROVINCES, provinceIDs, provinceConverter),
+        fetchProprietaireDetails<ProprietairePhysique>(COLLECTIONS.PROPRIETAIRES_PHYSIQUES, physiquePropIds, proprietairePhysiqueConverter),
+        fetchProprietaireDetails<ProprietaireMorale>(COLLECTIONS.PROPRIETAIRES_MORALES, moralePropIds, proprietaireMoraleConverter),
+      ]);
 
-        // ✅ Province via commune
-        let province: Province = { ProvinceID: '', NomProvince: 'Unknown' };
-        if (commune.ProvinceID) {
-          const provDoc = await getDoc(
-            doc(db, COLLECTIONS.PROVINCES, commune.ProvinceID).withConverter(provinceConverter)
-          );
-          if (provDoc.exists()) {
-            province = provDoc.data();
-          }
-        }
+      // 5. Create maps and records for efficient in-memory joining
+      const marqueMap = new Map(marques.map((m) => [m.MarqueID, m]));
+      const communeMap = new Map(communes.map((c) => [c.CommuneID, c]));
+      const provinceMap = new Map(provinces.map((p) => [p.ProvinceID, p]));
+      const gerantMap = new Map(gerants.map((g) => [g.GerantID, g]));
+      const proprietaireBaseMap = new Map(proprietairesBase.map((p) => [p.ProprietaireID, p]));
+      const proprietairePhysiqueMap = new Map(proprietairesPhysiques.map((p) => [p.ProprietaireID, p]));
+      const proprietaireMoraleMap = new Map(proprietairesMorales.map((p) => [p.ProprietaireID, p]));
 
-        const gerant: Gerant = gerantDoc?.exists()
-          ? {
-              ...gerantDoc.data(),
-              fullName: `${gerantDoc.data().PrenomGerant || ''} ${gerantDoc.data().NomGerant || ''}`.trim(),
-            }
-          : {
-              GerantID: '',
-              NomGerant: 'Unknown',
-              PrenomGerant: '',
-              CINGerant: '',
-              Telephone: '',
-              fullName: 'Unknown',
-            };
+      const groupByStationID = <T extends { StationID: string }>(items: T[]): Record<string, T[]> =>
+        items.reduce((acc, item) => {
+          (acc[item.StationID] ||= []).push(item);
+          return acc;
+        }, {} as Record<string, T[]>);
 
-        // ✅ Proprietaire with nested fetch
+      const autorisationsByStation = groupByStationID(autorisationsAll);
+      const capacitesByStation = groupByStationID(capacitesAll);
+      const analysesByStation = groupByStationID(analysesAll);
+
+      // Define default objects for missing data
+      const defaultMarque: Marque = { MarqueID: '', Marque: 'Unknown', RaisonSociale: '' };
+      const defaultCommune: Commune = { CommuneID: '', NomCommune: 'Unknown', ProvinceID: '' };
+      const defaultProvince: Province = { ProvinceID: '', NomProvince: 'Unknown' };
+      const defaultGerant: Gerant = { GerantID: '', NomGerant: 'Unknown', PrenomGerant: '', CINGerant: '', Telephone: '', fullName: 'Unknown' };
+
+      // 6. Build final results by joining data in memory
+      const results: StationWithDetails[] = baseStations.map((station) => {
+        const commune = communeMap.get(station.CommuneID!) || defaultCommune;
+        const gerantData = gerantMap.get(station.GerantID!);
+        const gerant: Gerant = gerantData
+          ? { ...gerantData, fullName: `${gerantData.PrenomGerant || ''} ${gerantData.NomGerant || ''}`.trim() }
+          : defaultGerant;
+
         let proprietaire: StationWithDetails['proprietaire'] = undefined;
-        if (proprietaireBaseDoc?.exists()) {
-          const base = proprietaireBaseDoc.data();
+        const base = proprietaireBaseMap.get(station.ProprietaireID!);
+        if (base) {
           if (base.TypeProprietaire === 'Physique') {
-            const physSnap = await getDocs(
-              query(
-                collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES).withConverter(proprietairePhysiqueConverter),
-                where('ProprietaireID', '==', base.ProprietaireID)
-              )
-            );
-            if (!physSnap.empty) {
-              proprietaire = { base, details: physSnap.docs[0].data() };
-            }
+            const details = proprietairePhysiqueMap.get(base.ProprietaireID);
+            if (details) proprietaire = { base, details };
           } else if (base.TypeProprietaire === 'Morale') {
-            const morSnap = await getDocs(
-              query(
-                collection(db, COLLECTIONS.PROPRIETAIRES_MORALES).withConverter(proprietaireMoraleConverter),
-                where('ProprietaireID', '==', base.ProprietaireID)
-              )
-            );
-            if (!morSnap.empty) {
-              proprietaire = { base, details: morSnap.docs[0].data() };
-            }
+            const details = proprietaireMoraleMap.get(base.ProprietaireID);
+            if (details) proprietaire = { base, details };
           }
         }
 
-        // ✅ Collections with converters
-        const autorisations: Autorisation[] = autorisationsSnap.docs.map((d) => ({
-          ...d.data(),
-          // Fix Firestore Timestamp -> Date
-          DateAutorisation:
-            (d.data().DateAutorisation as any)?.toDate?.() || null,
+        // Handle date conversions from Firestore Timestamps
+        const convertedAutorisations = (autorisationsByStation[station.StationID] || []).map(a => ({
+          ...a,
+          DateAutorisation: (a.DateAutorisation as any)?.toDate?.() || null,
         }));
 
-        const capacites: CapaciteStockage[] = capacitesSnap.docs.map((d) => d.data());
+        // Find the "création" and "mise en service" authorizations
+        const creationAutorisation = convertedAutorisations.find(
+          (a) => a.TypeAutorisation === 'création'
+        );
+        const miseEnServiceAutorisation = convertedAutorisations.find(
+          (a) => a.TypeAutorisation === 'mise en service'
+        );
 
-        // ✅ ADD ANALYSES PROCESSING
-        const analyses: Analyse[] = analysesSnap.docs.map((d) => ({
-          ...d.data(),
-          // Fix Firestore Timestamp -> Date
-          DateAnalyse: (d.data().DateAnalyse as any)?.toDate?.() || null,
+        const convertedAnalyses = (analysesByStation[station.StationID] || []).map(an => ({
+          ...an,
+          DateAnalyse: (an.DateAnalyse as any)?.toDate?.() || null,
         }));
 
-        results.push({
+        return {
           station,
-          marque,
+          marque: marqueMap.get(station.MarqueID!) || defaultMarque,
           commune,
-          province,
+          province: provinceMap.get(commune.ProvinceID) || defaultProvince,
           gerant,
           proprietaire,
-          autorisations,
-          capacites,
-          analyses, 
-        });
-      }
+          autorisations: convertedAutorisations,
+          capacites: capacitesByStation[station.StationID] || [],
+          analyses: convertedAnalyses,
+          creationAutorisation,
+          miseEnServiceAutorisation,
+        };
+      });
 
       setStations(results);
     } catch (err: any) {

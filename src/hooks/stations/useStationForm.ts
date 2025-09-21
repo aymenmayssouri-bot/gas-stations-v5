@@ -16,14 +16,30 @@ export function useStationForm(mode: Mode, station?: StationWithDetails) {
 
   const empty: StationFormData = useMemo(
     () => ({
-      NomStation: '', Adresse: '', Latitude: '', Longitude: '', Type: 'service',
-      Marque: '', RaisonSociale: '',
-      Commune: '', Province: '',
-      PrenomGerant: '', NomGerant: '', CINGerant: '', Telephone: '',
-      TypeProprietaire: 'Physique', PrenomProprietaire: '', NomProprietaire: '', NomEntreprise: '',
-      // Start with one empty autorisation
+      NomStation: '',
+      Adresse: '',
+      Latitude: '0', // Changed to '0' for number input
+      Longitude: '0', // Changed to '0' for number input
+      Type: 'service',
+      Marque: '',
+      RaisonSociale: '',
+      Commune: '',
+      Province: '',
+      PrenomGerant: '',
+      NomGerant: '',
+      CINGerant: '',
+      Telephone: '',
+      TypeProprietaire: 'Physique',
+      PrenomProprietaire: '',
+      NomProprietaire: '',
+      NomEntreprise: '',
       autorisations: [{ TypeAutorisation: 'création', NumeroAutorisation: '', DateAutorisation: '' }],
-      CapaciteGasoil: '', CapaciteSSP: '', TypeGerance: 'libre', Statut: 'en activité'
+      CapaciteGasoil: '0', // Changed to '0' for number input
+      CapaciteSSP: '0', // Changed to '0' for number input
+      TypeGerance: 'libre',
+      Statut: 'en activité',
+      Commentaires: '', // Changed from Commentaire to Commentaires
+      NombreVolucompteur: '0' // Changed to '0' for number input
     }),
     []
   );
@@ -46,30 +62,32 @@ export function useStationForm(mode: Mode, station?: StationWithDetails) {
   }, []);
 
   // Specific handler for updating an autorisation in the array
-  const updateAutorisationField = useCallback((index: number, key: 'TypeAutorisation' | 'NumeroAutorisation' | 'DateAutorisation', value: string) => {
-    setForm(prev => {
+  const updateAutorisationField = useCallback(
+    (index: number, key: 'TypeAutorisation' | 'NumeroAutorisation' | 'DateAutorisation', value: string) => {
+      setForm((prev) => {
         const newAutorisations = [...prev.autorisations];
         newAutorisations[index] = { ...newAutorisations[index], [key]: value };
         return { ...prev, autorisations: newAutorisations };
-    });
-  }, []);
-  
+      });
+    },
+    []
+  );
+
   // Add a new autorisation entry
   const addAutorisation = useCallback(() => {
-      setForm(prev => ({
-          ...prev,
-          autorisations: [...prev.autorisations, { TypeAutorisation: 'création', NumeroAutorisation: '', DateAutorisation: '' }]
-      }));
+    setForm((prev) => ({
+      ...prev,
+      autorisations: [...prev.autorisations, { TypeAutorisation: 'création', NumeroAutorisation: '', DateAutorisation: '' }]
+    }));
   }, []);
 
   // Remove an autorisation entry by its index
   const removeAutorisation = useCallback((index: number) => {
-      setForm(prev => ({
-          ...prev,
-          autorisations: prev.autorisations.filter((_, i) => i !== index)
-      }));
+    setForm((prev) => ({
+      ...prev,
+      autorisations: prev.autorisations.filter((_, i) => i !== index)
+    }));
   }, []);
-
 
   const submit = useCallback(async () => {
     setSubmitting(true);

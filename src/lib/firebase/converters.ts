@@ -1,23 +1,22 @@
+
 import { FirestoreDataConverter, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
-import { 
-  Station, 
-  Marque, 
-  Commune, 
-  Province, 
-  Gerant, 
+import {
+  Station,
+  Marque,
+  Commune,
+  Province,
+  Gerant,
   Proprietaire,
   ProprietairePhysique,
   ProprietaireMorale,
   Autorisation,
   CapaciteStockage,
-  Analyse
+  Analyse,
 } from "@/types/station";
 
-// Generic helper for non-owner collections
 export function createConverter<T extends { [key: string]: any }>(idField: string): FirestoreDataConverter<T> {
   return {
     toFirestore(model: T) {
-      // Remove the ID field when writing to Firestore
       const { [idField]: _, ...data } = model;
       return data;
     },
@@ -30,7 +29,6 @@ export function createConverter<T extends { [key: string]: any }>(idField: strin
   };
 }
 
-// Specific converter for Proprietaire to retain ProprietaireID
 export const proprietaireConverter: FirestoreDataConverter<Proprietaire> = {
   toFirestore(model: Proprietaire) {
     return {
@@ -47,7 +45,6 @@ export const proprietaireConverter: FirestoreDataConverter<Proprietaire> = {
   },
 };
 
-// Specific converter for ProprietairePhysique to retain ProprietaireID
 export const proprietairePhysiqueConverter: FirestoreDataConverter<ProprietairePhysique> = {
   toFirestore(model: ProprietairePhysique) {
     return {
@@ -66,7 +63,6 @@ export const proprietairePhysiqueConverter: FirestoreDataConverter<ProprietaireP
   },
 };
 
-// Specific converter for ProprietaireMorale to retain ProprietaireID
 export const proprietaireMoraleConverter: FirestoreDataConverter<ProprietaireMorale> = {
   toFirestore(model: ProprietaireMorale) {
     return {
@@ -83,7 +79,6 @@ export const proprietaireMoraleConverter: FirestoreDataConverter<ProprietaireMor
   },
 };
 
-// Other converters using generic helper
 export const stationConverter = createConverter<Station>("StationID");
 export const marqueConverter = createConverter<Marque>("MarqueID");
 export const communeConverter = createConverter<Commune>("CommuneID");
@@ -95,21 +90,19 @@ export const analyseConverter: FirestoreDataConverter<Analyse> = {
   toFirestore: (analyse: Analyse) => {
     return {
       ...analyse,
-      DateAnalyse: analyse.DateAnalyse instanceof Date ? 
-        Timestamp.fromDate(analyse.DateAnalyse) : 
-        analyse.DateAnalyse
+      DateAnalyse: analyse.DateAnalyse instanceof Date ?
+        Timestamp.fromDate(analyse.DateAnalyse) :
+        analyse.DateAnalyse,
     };
   },
-  fromFirestore: (
-    snapshot: QueryDocumentSnapshot,
-    options
-  ): Analyse => {
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): Analyse => {
     const data = snapshot.data(options);
     return {
       ...data,
-      DateAnalyse: data.DateAnalyse instanceof Timestamp ? 
-        data.DateAnalyse.toDate() : 
-        data.DateAnalyse
+      AnalyseID: snapshot.id,
+      DateAnalyse: data.DateAnalyse instanceof Timestamp ?
+        data.DateAnalyse.toDate() :
+        data.DateAnalyse,
     } as Analyse;
   },
 };

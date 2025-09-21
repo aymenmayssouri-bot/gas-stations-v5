@@ -20,6 +20,7 @@ interface TableActionsProps {
   onAnalysisYearChange: (year: number | 'all') => void;
   years: number[];
   analysesLoading?: boolean;
+  onResetAllFilters: () => void; // Add this new prop
 }
 
 export default function TableActions({
@@ -35,12 +36,17 @@ export default function TableActions({
   analysisYear,
   onAnalysisYearChange,
   years,
-  analysesLoading
+  analysesLoading,
+  onResetAllFilters,
 }: TableActionsProps) {
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-lg border">
       <div className="flex items-center gap-4 w-full sm:w-auto">
-        <Button variant="default" className="bg-black hover:bg-gray-800">
+        <Button 
+          onClick={onAddNew}
+          variant="default" 
+          className="bg-black hover:bg-gray-800"
+        >
           Ajouter une station
         </Button>
         <Button
@@ -52,7 +58,7 @@ export default function TableActions({
           {isExporting ? 'Exportation...' : 'Exporter le tableau'}
         </Button>
         <Button
-          onClick={onRefresh}
+          onClick={onResetAllFilters}  // Change from onRefresh to onResetAllFilters
           variant="secondary"
           className="flex items-center gap-2"
         >

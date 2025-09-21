@@ -304,6 +304,8 @@ export function useUpdateStation() {
         Type: formData.Type,
         TypeGerance: formData.TypeGerance,
         Statut: formData.Statut,
+        NombreVolucompteur: formData.NombreVolucompteur ? parseInt(formData.NombreVolucompteur, 10) : 0, 
+        Commentaires: formData.Commentaires.trim() || '', 
         MarqueID: marqueId,
         CommuneID: communeId,
         GerantID: gerantId,
