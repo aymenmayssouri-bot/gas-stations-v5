@@ -1,7 +1,7 @@
 // src/components/stations/TableHeader.tsx
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { SortConfig } from '@/types/table';
 import { Checkbox } from '@/components/ui/Checkbox';
 
@@ -28,6 +28,21 @@ export default function TableHeader({
 }: TableHeaderProps) {
   const [showFilter, setShowFilter] = useState(false);
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
+  const filterRef = useRef<HTMLDivElement>(null);
+
+  // Add click outside handler
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setShowFilter(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Initialize selectedValues only when selectedFilterValue changes
   useEffect(() => {
@@ -117,6 +132,7 @@ export default function TableHeader({
 
       {showFilter && filterValues.length > 0 && (
         <div
+          ref={filterRef}
           className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-10"
           onClick={(e) => e.stopPropagation()}
         >

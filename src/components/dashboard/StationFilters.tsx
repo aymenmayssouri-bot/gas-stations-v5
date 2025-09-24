@@ -11,6 +11,10 @@ interface StationFiltersProps {
   onFilterChange: (filteredStations: StationWithDetails[]) => void;
 }
 
+const areAllSelected = (selected: string[], all: string[]) => {
+  return all.length > 0 && selected.length === all.length;
+};
+
 export default function StationFilters({ stations, onFilterChange }: StationFiltersProps) {
   // ----- Filter State -----
   const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
@@ -101,6 +105,24 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
     onFilterChange(filteredStations);
   }, [filteredStations, onFilterChange]);
 
+  // Handler functions
+  const handleSelectAllProvinces = (checked: boolean) => {
+    setSelectedProvinces(checked ? provinces : []);
+    if (!checked) setSelectedCommunes([]); // Clear communes when deselecting all provinces
+  };
+
+  const handleSelectAllCommunes = (checked: boolean) => {
+    setSelectedCommunes(checked ? communes : []);
+  };
+
+  const handleSelectAllMarques = (checked: boolean) => {
+    setSelectedMarques(checked ? marques : []);
+  };
+
+  const handleSelectAllStatuses = (checked: boolean) => {
+    setSelectedStatuses(checked ? ['en activité', 'en projet', 'en arrêt', 'archivé'] : []);
+  };
+
   return (
     <div className="grid col-span-2 gap-4">
       {/* Province and Commune in first row */}
@@ -108,8 +130,19 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
         <CardHeader className="border-b">
           <CardTitle>Province</CardTitle>
         </CardHeader>
-        <CardContent className="h-[250px]"> {/* Fixed height */}
-          <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+        <CardContent className="h-[250px]">
+          <div className="pb-2 border-b">
+            <Checkbox
+              id="select-all-provinces"
+              checked={areAllSelected(selectedProvinces, provinces)}
+              onCheckedChange={handleSelectAllProvinces}
+            >
+              <span className="ml-2 text-sm">
+                {areAllSelected(selectedProvinces, provinces) ? "Déselectionner tous" : "Sélectionner tous"}
+              </span>
+            </Checkbox>
+          </div>
+          <div className="h-[calc(100%-2.5rem)] mt-2 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
             {provinces.map(p => (
               <div key={p} className="flex items-center py-1.5">
                 <Checkbox 
@@ -130,14 +163,27 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
             Commune
           </CardTitle>
         </CardHeader>
-        <CardContent className="h-[250px]"> {/* Fixed height */}
-          {isCommuneFilterDisabled ? (
-            <div className="h-full flex items-center justify-center text-sm text-gray-400 italic">
-              Sélectionnez une seule province.
+        <CardContent className="h-[250px]">
+          {!isCommuneFilterDisabled && (
+            <div className="pb-2 border-b">
+              <Checkbox
+                id="select-all-communes"
+                checked={areAllSelected(selectedCommunes, communes)}
+                onCheckedChange={handleSelectAllCommunes}
+              >
+                <span className="ml-2 text-sm">
+                  {areAllSelected(selectedCommunes, communes) ? "Déselectionner tous" : "Sélectionner tous"}
+                </span>
+              </Checkbox>
             </div>
-          ) : (
-            <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-              {communes.map(c => (
+          )}
+          <div className={`${isCommuneFilterDisabled ? 'h-full' : 'h-[calc(100%-2.5rem)] mt-2'} overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent`}>
+            {isCommuneFilterDisabled ? (
+              <div className="h-full flex items-center justify-center text-sm text-gray-400 italic">
+                Sélectionnez une seule province.
+              </div>
+            ) : (
+              communes.map(c => (
                 <div key={c} className="flex items-center py-1.5">
                   <Checkbox 
                     id={`c-${c}`} 
@@ -146,9 +192,9 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
                   />
                   <label htmlFor={`c-${c}`} className="ml-2 text-sm">{c}</label>
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -157,8 +203,19 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
         <CardHeader className="border-b">
           <CardTitle>Marque</CardTitle>
         </CardHeader>
-        <CardContent className="h-[250px]"> {/* Fixed height */}
-          <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+        <CardContent className="h-[250px]">
+          <div className="pb-2 border-b">
+            <Checkbox
+              id="select-all-marques"
+              checked={areAllSelected(selectedMarques, marques)}
+              onCheckedChange={handleSelectAllMarques}
+            >
+              <span className="ml-2 text-sm">
+                {areAllSelected(selectedMarques, marques) ? "Déselectionner tous" : "Sélectionner tous"}
+              </span>
+            </Checkbox>
+          </div>
+          <div className="h-[calc(100%-2.5rem)] mt-2 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
             {marques.map(m => (
               <div key={m} className="flex items-center py-1.5">
                 <Checkbox 
@@ -177,8 +234,21 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
         <CardHeader className="border-b">
           <CardTitle>Statut</CardTitle>
         </CardHeader>
-        <CardContent className="h-[250px]"> {/* Fixed height */}
-          <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+        <CardContent className="h-[250px]">
+          <div className="pb-2 border-b">
+            <Checkbox
+              id="select-all-statuses"
+              checked={areAllSelected(selectedStatuses, ['en activité', 'en projet', 'en arrêt', 'archivé'])}
+              onCheckedChange={handleSelectAllStatuses}
+            >
+              <span className="ml-2 text-sm">
+                {areAllSelected(selectedStatuses, ['en activité', 'en projet', 'en arrêt', 'archivé']) 
+                  ? "Déselectionner tous" 
+                  : "Sélectionner tous"}
+              </span>
+            </Checkbox>
+          </div>
+          <div className="h-[calc(100%-2.5rem)] mt-2 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
             {['en activité','en projet','en arrêt','archivé'].map((s) => (
               <div key={s} className="flex items-center py-1.5">
                 <Checkbox

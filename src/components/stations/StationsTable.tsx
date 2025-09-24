@@ -110,30 +110,64 @@ export default function StationsTable({
   triggerExport,
 }: StationsTableProps) {
   const filterValues = useMemo(() => {
+    // Start with the filtered stations based on current filters
+    let filteredStations = fullStations;
+
+    // Apply existing filters to get dependent values
+    filters.forEach(filter => {
+      filteredStations = filteredStations.filter(station => {
+        const value = getCellValue(station, filter.key).toLowerCase();
+        const filterValues = filter.value.toLowerCase().split('|');
+        return filterValues.some(filterValue => value.includes(filterValue));
+      });
+    });
+
     return {
-      Code: [...new Set(fullStations.map(s => String(s.station.Code || '')))].sort(),
-      NomStation: [...new Set(fullStations.map(s => s.station.NomStation || ''))].sort(),
-      Adresse: [...new Set(fullStations.map(s => s.station.Adresse || ''))].sort(),
-      NomCommune: [...new Set(fullStations.map(s => s.commune?.NomCommune || ''))].sort(),
-      NomProvince: [...new Set(fullStations.map(s => s.province?.NomProvince || ''))].sort(),
-      Marque: [...new Set(fullStations.map(s => s.marque?.Marque || ''))].sort(),
-      Gerant: [...new Set(fullStations.map(s => safeFullName(s.gerant?.PrenomGerant, s.gerant?.NomGerant) || ''))].sort(),
-      Proprietaire: [...new Set(fullStations.map(s => getProprietaireName(s) || ''))].sort(),
-      Type: [...new Set(fullStations.map(s => s.station.Type || ''))].sort(),
-      Statut: [...new Set(fullStations.map(s => s.station.Statut || ''))].sort(),
-      TypeGerance: [...new Set(fullStations.map(s => s.station?.TypeGerance || ''))].sort(),
-      CapaciteSSP: [...new Set(fullStations.map(s => String(s.capacites.filter(c => c.TypeCarburant === 'SSP').reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0))))].sort(),
-      CapaciteGasoil: [...new Set(fullStations.map(s => String(s.capacites.filter(c => c.TypeCarburant === 'Gasoil').reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0))))].sort(),
-      NumeroCreation: [...new Set(fullStations.map(s => s.creationAutorisation?.NumeroAutorisation || ''))].sort(),
-      DateCreation: [...new Set(fullStations.map(s => s.creationAutorisation?.DateAutorisation ? formatDate(s.creationAutorisation.DateAutorisation) : ''))].sort(),
-      NumeroMiseEnService: [...new Set(fullStations.map(s => s.miseEnServiceAutorisation?.NumeroAutorisation || ''))].sort(),
-      DateMiseEnService: [...new Set(fullStations.map(s => s.miseEnServiceAutorisation?.DateAutorisation ? formatDate(s.miseEnServiceAutorisation.DateAutorisation) : ''))].sort(),
-      Commentaire: [...new Set(fullStations.map(s => s.station.Commentaires || ''))].sort(),
-      NombreVolucompteur: [...new Set(fullStations.map(s => String(s.station.NombreVolucompteur ?? '')))].sort(),
-      Latitude: [...new Set(fullStations.map(s => String(s.station.Latitude || '')))].sort(),
-      Longitude: [...new Set(fullStations.map(s => String(s.station.Longitude || '')))].sort(),
+      Code: [...new Set(filteredStations.map(s => String(s.station.Code || '')))].sort(),
+      NomStation: [...new Set(filteredStations.map(s => s.station.NomStation || ''))].sort(),
+      Adresse: [...new Set(filteredStations.map(s => s.station.Adresse || ''))].sort(),
+      NomCommune: [...new Set(filteredStations.map(s => s.commune?.NomCommune || ''))].sort(),
+      NomProvince: [...new Set(filteredStations.map(s => s.province?.NomProvince || ''))].sort(),
+      Marque: [...new Set(filteredStations.map(s => s.marque?.Marque || ''))].sort(),
+      Gerant: [...new Set(filteredStations.map(s => 
+        safeFullName(s.gerant?.PrenomGerant, s.gerant?.NomGerant) || ''
+      ))].sort(),
+      Proprietaire: [...new Set(filteredStations.map(s => getProprietaireName(s) || ''))].sort(),
+      Type: [...new Set(filteredStations.map(s => s.station.Type || ''))].sort(),
+      Statut: [...new Set(filteredStations.map(s => s.station.Statut || ''))].sort(),
+      TypeGerance: [...new Set(filteredStations.map(s => s.station?.TypeGerance || ''))].sort(),
+      CapaciteSSP: [...new Set(filteredStations.map(s => 
+        String(s.capacites
+          .filter(c => c.TypeCarburant === 'SSP')
+          .reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0))
+      ))].sort(),
+      CapaciteGasoil: [...new Set(filteredStations.map(s => 
+        String(s.capacites
+          .filter(c => c.TypeCarburant === 'Gasoil')
+          .reduce((sum, c) => sum + (c.CapaciteLitres || 0), 0))
+      ))].sort(),
+      NumeroCreation: [...new Set(filteredStations.map(s => 
+        s.creationAutorisation?.NumeroAutorisation || ''
+      ))].sort(),
+      DateCreation: [...new Set(filteredStations.map(s => 
+        s.creationAutorisation?.DateAutorisation ? 
+          formatDate(s.creationAutorisation.DateAutorisation) : ''
+      ))].sort(),
+      NumeroMiseEnService: [...new Set(filteredStations.map(s => 
+        s.miseEnServiceAutorisation?.NumeroAutorisation || ''
+      ))].sort(),
+      DateMiseEnService: [...new Set(filteredStations.map(s => 
+        s.miseEnServiceAutorisation?.DateAutorisation ? 
+          formatDate(s.miseEnServiceAutorisation.DateAutorisation) : ''
+      ))].sort(),
+      Commentaire: [...new Set(filteredStations.map(s => s.station.Commentaires || ''))].sort(),
+      NombreVolucompteur: [...new Set(filteredStations.map(s => 
+        String(s.station.NombreVolucompteur ?? '')
+      ))].sort(),
+      Latitude: [...new Set(filteredStations.map(s => String(s.station.Latitude || '')))].sort(),
+      Longitude: [...new Set(filteredStations.map(s => String(s.station.Longitude || '')))].sort(),
     };
-  }, [fullStations]);
+  }, [fullStations, filters]); // Add filters as dependency
 
   const getFilterValue = (key: string) => {
     return filters.find(filter => filter.key === key)?.value || '';

@@ -43,15 +43,15 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Filters Panel - Takes 1/4 of the screen on desktop */}
-        <div className="lg:col-span-1">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Filters Panel - Takes ~1/3 (2/5) of the screen on desktop */}
+        <div className="lg:col-span-2">
           <Card className="sticky top-6">
             <CardHeader>
               <CardTitle>Filtres</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Make filters appear two per row */}
+              {/* Keep filters two per row */}
               <div className="grid grid-cols-2 gap-4">
                 <StationFilters 
                   stations={stations} 
@@ -62,9 +62,9 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Main Content Panel - Takes 3/4 of the screen on desktop */}
+        {/* Main Content Panel - Takes ~2/3 (3/5) of the screen on desktop */}
         <div className="lg:col-span-3 space-y-6">
-          {/* Updated Stats Cards Row - Changed grid-cols classes */}
+          {/* Stats Cards Row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Number of stations card will take 1/3 of space */}
             <div className="md:col-span-1">
