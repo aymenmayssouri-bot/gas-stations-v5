@@ -19,7 +19,7 @@ import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { getProprietaireName } from '@/utils/format';
-import { getCellValue } from '@/components/stations/StationsTable'; // Import getCellValue
+import { getCellValue } from '@/components/stations/StationsTable';
 import { FilterTags } from '@/components/stations/FilterTags';
 
 interface FileSystemHandle {
@@ -146,24 +146,38 @@ export default function StationsPage() {
 
   const { stations, loading, error, refetch } = useStations();
   const { deleteStation, loading: deleteLoading } = useDeleteStation();
-  const { analyses, loading: analysesLoading } = useAnalysesIndex(stations.map(s => s.station.StationID));
+  const stationIds = useMemo(() => stations.map(s => s.station.StationID), [stations]);
+  const { analyses, loading: analysesLoading } = useAnalysesIndex(stationIds);
 
   useEffect(() => {
-    stations.forEach(s => {
-      s.analyses = analyses.filter(a => a.StationID === s.station.StationID);
-    });
-  }, [analyses, stations]);
+    if (!loading && !analysesLoading && stations.length > 0) {
+      const updatedStations = stations.map(s => ({
+        ...s,
+        analyses: analyses.filter(a => a.StationID === s.station.StationID)
+      }));
+      console.log('Stations with analyses:', updatedStations.map(s => ({
+        StationID: s.station.StationID,
+        AnalysisCount: s.analyses?.length || 0,
+      }))); // Debug log
+    }
+  }, [stations, analyses, loading, analysesLoading]);
 
   const years = useMemo(() => {
     const uniqueYears = new Set<number>();
     stations.forEach(s => {
-      s.analyses?.forEach(a => {
-        if (a.DateAnalyse) {
-          uniqueYears.add(new Date(a.DateAnalyse).getFullYear());
-        }
-      });
+      if (s.analyses?.length) {
+        s.analyses.forEach(a => {
+          if (a.DateAnalyse && a.DateAnalyse instanceof Date && !isNaN(a.DateAnalyse.getTime())) {
+            uniqueYears.add(a.DateAnalyse.getFullYear());
+          } else {
+            console.warn(`Invalid DateAnalyse for analysis ${a.AnalyseID}:`, a.DateAnalyse);
+          }
+        });
+      }
     });
-    return Array.from(uniqueYears).sort((a, b) => b - a);
+    const yearsArray = Array.from(uniqueYears).sort((a, b) => b - a);
+    console.log('Computed years:', yearsArray); // Debug log
+    return yearsArray;
   }, [stations]);
 
   const handleAddNew = () => {
@@ -186,7 +200,6 @@ export default function StationsPage() {
         await deleteStation(stationToDelete.station.StationID);
         setStationToDelete(undefined); // Close dialog on success
       } catch (err) {
-        // Error is already set by useDeleteStation hook (setError)
         console.error('Deletion failed:', err);
       }
     }
@@ -253,15 +266,11 @@ export default function StationsPage() {
       );
     }
 
-    if (analysisStatus !== 'all') {
+    if (analysisStatus !== 'all' && analysisYear !== 'all') {
       result = result.filter(s => {
         const hasAnalyses = s.analyses && s.analyses.length > 0;
         if (analysisStatus === 'analysed') {
-          if (!hasAnalyses) return false;
-          if (analysisYear !== 'all') {
-            return s.analyses.some(a => a.DateAnalyse && new Date(a.DateAnalyse).getFullYear() === analysisYear);
-          }
-          return hasAnalyses;
+          return hasAnalyses && s.analyses.some(a => a.DateAnalyse && new Date(a.DateAnalyse).getFullYear() === analysisYear);
         }
         return !hasAnalyses;
       });
@@ -276,7 +285,6 @@ export default function StationsPage() {
     return globalFiltered.filter(s => 
       columnFilters.every(filter => {
         const value = getCellValue(s, filter.key).toLowerCase();
-        // Split the filter value by | to handle multiple selections
         const filterValues = filter.value.toLowerCase().split('|');
         return filterValues.some(filterValue => value.includes(filterValue));
       })
@@ -337,7 +345,6 @@ export default function StationsPage() {
   const validCurrentPage = Math.min(currentPage, totalPages);
 
   const handleResetAllFilters = useCallback(() => {
-    // Reset all filters
     setColumnFilters([]);
     setSearchQuery('');
     setAnalysisStatus('all');
@@ -346,7 +353,7 @@ export default function StationsPage() {
     setSortConfig({ key: 'Code', direction: 'asc' });
   }, []);
 
-  if (loading) {
+  if (loading || analysesLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <LoadingSpinner />
@@ -386,7 +393,7 @@ export default function StationsPage() {
         onAnalysisYearChange={setAnalysisYear}
         years={years}
         analysesLoading={analysesLoading}
-        onResetAllFilters={handleResetAllFilters}  // Add this new prop
+        onResetAllFilters={handleResetAllFilters}
       />
 
       <FilterTags 
@@ -403,9 +410,9 @@ export default function StationsPage() {
       ) : (
         <StationsTable
           stations={sortedStations}
-          fullStations={globalFiltered} // Added fullStations for filterValues
-          filters={columnFilters} // Added filters prop
-          onFilterChange={handleFilterChange} // Added onFilterChange prop
+          fullStations={globalFiltered}
+          filters={columnFilters}
+          onFilterChange={handleFilterChange}
           onEdit={handleEdit}
           onDelete={handleDelete}
           sortConfig={sortConfig}

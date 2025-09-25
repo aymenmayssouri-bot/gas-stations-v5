@@ -1,9 +1,8 @@
+// src/components/stations/TableActions.tsx
 'use client';
 
-import { SearchInput } from '@/components/ui';
-import { Button } from '@/components/ui';
-import { RefreshCcw } from 'lucide-react'; // Add this import for refresh icon
-import { FileSpreadsheet } from 'lucide-react'; // Add this import for excel icon
+import { SearchInput, Button } from '@/components/ui';
+import { RefreshCcw, FileSpreadsheet } from 'lucide-react';
 
 interface TableActionsProps {
   onAddNew: () => void;
@@ -13,15 +12,22 @@ interface TableActionsProps {
   onRefresh: () => void;
   onExport: () => void;
   isExporting: boolean;
-  // Add new props for analyse filters
   analysisStatus: 'all' | 'analysed' | 'not-analysed';
   onAnalysisStatusChange: (status: 'all' | 'analysed' | 'not-analysed') => void;
   analysisYear: number | 'all';
   onAnalysisYearChange: (year: number | 'all') => void;
   years: number[];
   analysesLoading?: boolean;
-  onResetAllFilters: () => void; // Add this new prop
+  onResetAllFilters: () => void;
 }
+
+const generateYearRange = (start: number, end: number): number[] => {
+  const years: number[] = [];
+  for (let year = start; year <= end; year++) {
+    years.push(year);
+  }
+  return years;
+};
 
 export default function TableActions({
   onAddNew,
@@ -39,6 +45,12 @@ export default function TableActions({
   analysesLoading,
   onResetAllFilters,
 }: TableActionsProps) {
+  console.log('TableActions props:', { analysisStatus, analysisYear, years, analysesLoading });
+
+  const yearOptions = (analysisStatus === 'not-analysed' || years.length === 0) 
+    ? generateYearRange(2020, 2030) 
+    : years;
+
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-lg border">
       <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -58,7 +70,7 @@ export default function TableActions({
           {isExporting ? 'Exportation...' : 'Exporter le tableau'}
         </Button>
         <Button
-          onClick={onResetAllFilters}  // Change from onRefresh to onResetAllFilters
+          onClick={onResetAllFilters}
           variant="secondary"
           className="flex items-center gap-2"
         >
@@ -67,7 +79,6 @@ export default function TableActions({
         </Button>
       </div>
 
-      {/* Add analyse filters with label */}
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-gray-700">Analyses PP :</span>
         <select
@@ -81,15 +92,18 @@ export default function TableActions({
           <option value="not-analysed">Stations Non Analysées</option>
         </select>
 
-        {analysisStatus === 'analysed' && (
+        {(analysisStatus === 'analysed' || analysisStatus === 'not-analysed') && (
           <select
             value={analysisYear}
-            onChange={(e) => onAnalysisYearChange(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10))}
+            onChange={(e) => {
+              console.log('Year dropdown changed to:', e.target.value);
+              onAnalysisYearChange(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10));
+            }}
             className="border rounded px-2 py-1 text-sm"
             disabled={analysesLoading}
           >
             <option value="all">Toutes les années</option>
-            {years.map((y) => (
+            {yearOptions.map((y) => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
