@@ -34,7 +34,7 @@ export default function NearbyStationsTable({ stations }: NearbyStationsTablePro
               <td className="px-4 py-2 border text-sm text-gray-900">{s.station.Code || '-'}</td>
               <td className="px-4 py-2 border text-sm text-gray-900 font-medium">{s.marque.Marque || '-'}</td>
               <td className="px-4 py-2 border text-sm text-gray-900">{s.commune.NomCommune || '-'}</td>
-              <td className="px-4 py-2 border text-sm text-gray-900 font-semibold text-green-600">
+              <td className="px-4 py-2 border text-sm font-semibold text-green-600">
                 {s.distance.toFixed(2)}
               </td>
             </tr>

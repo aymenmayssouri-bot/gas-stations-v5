@@ -38,6 +38,7 @@ export default function NearbyStationsPage() {
   const [xError, setXError] = useState<string>('');
   const [yError, setYError] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false); // New state to track if search was performed
   const { nearbyStations, nearbyLoading, nearbyError, fetchNearbyStations, stationsLoading, stationsError } = useNearbyStations();
 
   // Handle export (unchanged)
@@ -97,6 +98,7 @@ export default function NearbyStationsPage() {
     setLongitudeError('');
     setXError('');
     setYError('');
+    setHasSearched(true); // Set hasSearched to true when search is initiated
 
     let lat: number, lng: number;
 
@@ -106,18 +108,22 @@ export default function NearbyStationsPage() {
 
       if (isNaN(lat)) {
         setLatitudeError('Veuillez entrer une latitude valide.');
+        setHasSearched(false); // Reset hasSearched if validation fails
         return;
       }
       if (lat < -90 || lat > 90) {
         setLatitudeError('La latitude doit être comprise entre -90 et 90.');
+        setHasSearched(false); // Reset hasSearched if validation fails
         return;
       }
       if (isNaN(lng)) {
         setLongitudeError('Veuillez entrer une longitude valide.');
+        setHasSearched(false); // Reset hasSearched if validation fails
         return;
       }
       if (lng < -180 || lng > 180) {
         setLongitudeError('La longitude doit être comprise entre -180 et 180.');
+        setHasSearched(false); // Reset hasSearched if validation fails
         return;
       }
     } else {
@@ -126,18 +132,22 @@ export default function NearbyStationsPage() {
 
       if (isNaN(x)) {
         setXError('Veuillez entrer une coordonnée X valide.');
+        setHasSearched(false); // Reset hasSearched if validation fails
         return;
       }
       if (x < 0 || x > 920000) {
         setXError('La coordonnée X doit être comprise entre 0 et 920000.');
+        setHasSearched(false); // Reset hasSearched if validation fails
         return;
       }
       if (isNaN(y)) {
         setYError('Veuillez entrer une coordonnée Y valide.');
+        setHasSearched(false); // Reset hasSearched if validation fails
         return;
       }
       if (y < 0 || y > 591000) {
         setYError('La coordonnée Y doit être comprise entre 0 et 591000.');
+        setHasSearched(false); // Reset hasSearched if validation fails
         return;
       }
 
@@ -145,6 +155,7 @@ export default function NearbyStationsPage() {
         const [lon, latConverted] = proj4('EPSG:26191', 'EPSG:4326', [x, y]);
         if (isNaN(latConverted) || isNaN(lon)) {
           setXError('Erreur lors de la conversion des coordonnées.');
+          setHasSearched(false); // Reset hasSearched if validation fails
           return;
         }
         lat = latConverted;
@@ -154,6 +165,7 @@ export default function NearbyStationsPage() {
       } catch (error) {
         console.error('Conversion error:', error);
         setXError('Erreur lors de la conversion des coordonnées.');
+        setHasSearched(false); // Reset hasSearched if validation fails
         return;
       }
     }
@@ -171,6 +183,7 @@ export default function NearbyStationsPage() {
     setLongitudeError('');
     setXError('');
     setYError('');
+    setHasSearched(false); // Reset hasSearched when coordinate system changes
   };
 
   // Handle X and Y input changes with formatting
@@ -307,7 +320,15 @@ export default function NearbyStationsPage() {
           {nearbyStations.length > 0 ? (
             <NearbyStationsTable stations={nearbyStations} />
           ) : (
-            !nearbyLoading && <p className="text-gray-500">Entrez des coordonnées et recherchez pour voir les stations proches.</p>
+            !nearbyLoading && (
+              hasSearched ? (
+                <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                  Aucune station ne se trouve dans un rayon de 20 Km de ce point !
+                </div>
+              ) : (
+                <p className="text-gray-500">Entrez des coordonnées et recherchez pour voir les stations proches.</p>
+              )
+            )
           )}
         </CardContent>
       </Card>
