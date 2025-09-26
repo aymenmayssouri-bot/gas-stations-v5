@@ -1,4 +1,3 @@
-
 import { FirestoreDataConverter, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
 import {
   Station,
@@ -86,6 +85,7 @@ export const provinceConverter = createConverter<Province>("ProvinceID");
 export const gerantConverter = createConverter<Gerant>("GerantID");
 export const autorisationConverter = createConverter<Autorisation>("AutorisationID");
 export const capaciteConverter = createConverter<CapaciteStockage>("CapaciteID");
+
 export const analyseConverter: FirestoreDataConverter<Analyse> = {
   toFirestore: (analyse: Analyse) => {
     return {
@@ -97,12 +97,30 @@ export const analyseConverter: FirestoreDataConverter<Analyse> = {
   },
   fromFirestore: (snapshot: QueryDocumentSnapshot, options): Analyse => {
     const data = snapshot.data(options);
+    
+    // Better date conversion with more robust handling
+    let dateAnalyse: Date | null = null;
+    
+    if (data.DateAnalyse instanceof Timestamp) {
+      dateAnalyse = data.DateAnalyse.toDate();
+    } else if (data.DateAnalyse instanceof Date && !isNaN(data.DateAnalyse.getTime())) {
+      dateAnalyse = data.DateAnalyse;
+    } else if (typeof data.DateAnalyse === 'string' && data.DateAnalyse) {
+      const parsed = new Date(data.DateAnalyse);
+      if (!isNaN(parsed.getTime())) {
+        dateAnalyse = parsed;
+      }
+    } else if (data.DateAnalyse === null || data.DateAnalyse === undefined) {
+      dateAnalyse = null;
+    } else {
+      console.warn(`Invalid DateAnalyse format in document ${snapshot.id}:`, data.DateAnalyse);
+      dateAnalyse = null;
+    }
+    
     return {
       ...data,
       AnalyseID: snapshot.id,
-      DateAnalyse: data.DateAnalyse instanceof Timestamp ?
-        data.DateAnalyse.toDate() :
-        data.DateAnalyse,
+      DateAnalyse: dateAnalyse,
     } as Analyse;
   },
 };

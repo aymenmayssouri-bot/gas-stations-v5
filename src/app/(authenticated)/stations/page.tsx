@@ -1,7 +1,7 @@
 // src\app\(authenticated)\stations\page.tsx
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useStations } from "@/hooks/stations/useStations";
 import { useDeleteStation } from "@/hooks/stations/useDeleteStation";
@@ -146,39 +146,20 @@ export default function StationsPage() {
 
   const { stations, loading, error, refetch } = useStations();
   const { deleteStation, loading: deleteLoading } = useDeleteStation();
+  
+  // Get station IDs and fetch analyses - with proper memoization
   const stationIds = useMemo(() => stations.map(s => s.station.StationID), [stations]);
-  const { analyses, loading: analysesLoading } = useAnalysesIndex(stationIds);
+  const { analyses, years, loading: analysesLoading } = useAnalysesIndex(stationIds);
 
-  useEffect(() => {
-    if (!loading && !analysesLoading && stations.length > 0) {
-      const updatedStations = stations.map(s => ({
-        ...s,
-        analyses: analyses.filter(a => a.StationID === s.station.StationID)
-      }));
-      console.log('Stations with analyses:', updatedStations.map(s => ({
-        StationID: s.station.StationID,
-        AnalysisCount: s.analyses?.length || 0,
-      }))); // Debug log
-    }
+  // Update stations with analyses when both data are loaded
+  const stationsWithAnalyses = useMemo(() => {
+    if (loading || analysesLoading) return [];
+    
+    return stations.map(s => ({
+      ...s,
+      analyses: analyses.filter(a => a.StationID === s.station.StationID)
+    }));
   }, [stations, analyses, loading, analysesLoading]);
-
-  const years = useMemo(() => {
-    const uniqueYears = new Set<number>();
-    stations.forEach(s => {
-      if (s.analyses?.length) {
-        s.analyses.forEach(a => {
-          if (a.DateAnalyse && a.DateAnalyse instanceof Date && !isNaN(a.DateAnalyse.getTime())) {
-            uniqueYears.add(a.DateAnalyse.getFullYear());
-          } else {
-            console.warn(`Invalid DateAnalyse for analysis ${a.AnalyseID}:`, a.DateAnalyse);
-          }
-        });
-      }
-    });
-    const yearsArray = Array.from(uniqueYears).sort((a, b) => b - a);
-    console.log('Computed years:', yearsArray); // Debug log
-    return yearsArray;
-  }, [stations]);
 
   const handleAddNew = () => {
     setEditingStation(undefined);
@@ -250,9 +231,11 @@ export default function StationsPage() {
     router.push(`/stations/${stationId}`);
   };
 
+  // Global filtering (search + analysis filter)
   const globalFiltered = useMemo(() => {
-    let result = [...stations];
+    let result = [...stationsWithAnalyses];
 
+    // Search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       result = result.filter(s =>
@@ -266,19 +249,37 @@ export default function StationsPage() {
       );
     }
 
-    if (analysisStatus !== 'all' && analysisYear !== 'all') {
+    // Analysis status filter - only apply if both status and year are selected
+    if (analysisStatus !== 'all') {
       result = result.filter(s => {
         const hasAnalyses = s.analyses && s.analyses.length > 0;
+        
         if (analysisStatus === 'analysed') {
-          return hasAnalyses && s.analyses.some(a => a.DateAnalyse && new Date(a.DateAnalyse).getFullYear() === analysisYear);
+          if (!hasAnalyses) return false;
+          
+          // If a specific year is selected, check if station has analyses for that year
+          if (analysisYear !== 'all') {
+            return s.analyses.some(a => 
+              a.DateAnalyse && 
+              a.DateAnalyse instanceof Date && 
+              !isNaN(a.DateAnalyse.getTime()) && 
+              a.DateAnalyse.getFullYear() === analysisYear
+            );
+          }
+          
+          return true; // Has analyses, no specific year filter
+        } else if (analysisStatus === 'not-analysed') {
+          return !hasAnalyses;
         }
-        return !hasAnalyses;
+        
+        return true;
       });
     }
 
     return result;
-  }, [stations, searchQuery, analysisStatus, analysisYear]);
+  }, [stationsWithAnalyses, searchQuery, analysisStatus, analysisYear]);
 
+  // Column filtering
   const allFiltered = useMemo(() => {
     if (columnFilters.length === 0) return globalFiltered;
 

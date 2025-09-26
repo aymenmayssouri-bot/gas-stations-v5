@@ -1,7 +1,7 @@
 // src/hooks/useStationData/useAnalysesIndex.ts
 'use client';
 
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { COLLECTIONS } from '@/lib/firebase/collections';
@@ -12,7 +12,6 @@ type Status = 'all' | 'analysed' | 'not-analysed';
 
 type AnalysesState = {
   analyses: Analyse[];
-  years: number[];
   loading: boolean;
   error: string | null;
 };
@@ -21,10 +20,17 @@ export function useAnalysesIndex(stationId: string | string[]) {
   const isMounted = useRef(true);
   const [state, setState] = useState<AnalysesState>({
     analyses: [],
-    years: [],
     loading: true,
     error: null
   });
+
+  // Memoize stationId to prevent unnecessary re-renders
+  const stationIdMemo = useMemo(() => {
+    if (Array.isArray(stationId)) {
+      return stationId.filter(Boolean).sort().join(',');
+    }
+    return stationId || '';
+  }, [stationId]);
 
   const fetchAnalyses = useCallback(async () => {
     if (!isMounted.current) return;
@@ -33,11 +39,13 @@ export function useAnalysesIndex(stationId: string | string[]) {
 
     try {
       const analysesRef = collection(db, COLLECTIONS.ANALYSES).withConverter(analyseConverter);
-      
       let allAnalyses: Analyse[] = [];
+      
       if (Array.isArray(stationId) && stationId.length > 0) {
+        const validStationIds = stationId.filter(Boolean);
+        
         // Split into chunks of 10 due to Firebase 'in' query limit
-        const chunks = stationId.reduce((acc, curr, i) => {
+        const chunks = validStationIds.reduce((acc, curr, i) => {
           const chunkIndex = Math.floor(i / 10);
           if (!acc[chunkIndex]) acc[chunkIndex] = [];
           acc[chunkIndex].push(curr);
@@ -52,20 +60,30 @@ export function useAnalysesIndex(stationId: string | string[]) {
           );
           
           const snapshot = await getDocs(chunkQuery);
+          
           const chunkAnalyses = snapshot.docs.map(doc => {
             const data = doc.data();
-            console.log(`Raw analysis data for ${doc.id}:`, { ...data, DateAnalyse: data.DateAnalyse });
-            const analyse = {
+            
+            // Better date conversion logic
+            let dateAnalyse: Date | null = null;
+            
+            if (data.DateAnalyse instanceof Timestamp) {
+              dateAnalyse = data.DateAnalyse.toDate();
+            } else if (data.DateAnalyse instanceof Date && !isNaN(data.DateAnalyse.getTime())) {
+              dateAnalyse = data.DateAnalyse;
+            } else if (typeof data.DateAnalyse === 'string' && data.DateAnalyse) {
+              const parsed = new Date(data.DateAnalyse);
+              if (!isNaN(parsed.getTime())) {
+                dateAnalyse = parsed;
+              }
+            }
+            
+            const analyse: Analyse = {
               ...data,
               AnalyseID: doc.id,
-              DateAnalyse: data.DateAnalyse instanceof Timestamp ? 
-                data.DateAnalyse.toDate() : 
-                data.DateAnalyse instanceof Date && !isNaN(data.DateAnalyse.getTime()) ?
-                  data.DateAnalyse :
-                  typeof data.DateAnalyse === 'string' && data.DateAnalyse ?
-                    new Date(data.DateAnalyse) :
-                    null
+              DateAnalyse: dateAnalyse
             };
+            
             return analyse;
           });
           allAnalyses.push(...chunkAnalyses);
@@ -78,50 +96,42 @@ export function useAnalysesIndex(stationId: string | string[]) {
         );
 
         const snapshot = await getDocs(q);
+        
         allAnalyses = snapshot.docs.map(doc => {
           const data = doc.data();
-          console.log(`Raw analysis data for ${doc.id}:`, { ...data, DateAnalyse: data.DateAnalyse });
-          const analyse = {
+          
+          // Better date conversion logic
+          let dateAnalyse: Date | null = null;
+          
+          if (data.DateAnalyse instanceof Timestamp) {
+            dateAnalyse = data.DateAnalyse.toDate();
+          } else if (data.DateAnalyse instanceof Date && !isNaN(data.DateAnalyse.getTime())) {
+            dateAnalyse = data.DateAnalyse;
+          } else if (typeof data.DateAnalyse === 'string' && data.DateAnalyse) {
+            const parsed = new Date(data.DateAnalyse);
+            if (!isNaN(parsed.getTime())) {
+              dateAnalyse = parsed;
+            }
+          }
+          
+          const analyse: Analyse = {
             ...data,
             AnalyseID: doc.id,
-            DateAnalyse: data.DateAnalyse instanceof Timestamp ? 
-              data.DateAnalyse.toDate() : 
-              data.DateAnalyse instanceof Date && !isNaN(data.DateAnalyse.getTime()) ?
-                data.DateAnalyse :
-                typeof data.DateAnalyse === 'string' && data.DateAnalyse ?
-                  new Date(data.DateAnalyse) :
-                  null
+            DateAnalyse: dateAnalyse
           };
+          
           return analyse;
         });
       }
 
       if (!isMounted.current) return;
 
-      const yearSet = new Set<number>();
-      allAnalyses.forEach(analyse => {
-        if (analyse.DateAnalyse && analyse.DateAnalyse instanceof Date && !isNaN(analyse.DateAnalyse.getTime())) {
-          yearSet.add(analyse.DateAnalyse.getFullYear());
-        } else {
-          console.warn(`Invalid DateAnalyse for analysis ${analyse.AnalyseID}:`, analyse.DateAnalyse);
-        }
-      });
-
-      console.log('Fetched analyses:', allAnalyses.map(a => ({
-        AnalyseID: a.AnalyseID,
-        StationID: a.StationID,
-        DateAnalyse: a.DateAnalyse ? a.DateAnalyse.toISOString() : null
-      })));
-      console.log('Extracted years:', Array.from(yearSet));
-
       setState({
         analyses: allAnalyses,
-        years: Array.from(yearSet).sort((a, b) => b - a),
         loading: false,
         error: null
       });
     } catch (err: any) {
-      console.error('Error fetching analyses:', err);
       if (isMounted.current) {
         setState(prev => ({
           ...prev,
@@ -130,7 +140,7 @@ export function useAnalysesIndex(stationId: string | string[]) {
         }));
       }
     }
-  }, [stationId]);
+  }, [stationIdMemo]); // Use memoized stationId
 
   const filterStationsByAnalysis = useCallback(
     <T extends { station: { StationID: string } }>(
@@ -162,18 +172,40 @@ export function useAnalysesIndex(stationId: string | string[]) {
     [state.analyses]
   );
 
+  // Compute years from analyses
+  const years = useMemo(() => {
+    const yearSet = new Set<number>();
+    state.analyses.forEach(analyse => {
+      if (analyse.DateAnalyse && analyse.DateAnalyse instanceof Date && !isNaN(analyse.DateAnalyse.getTime())) {
+        yearSet.add(analyse.DateAnalyse.getFullYear());
+      }
+    });
+    return Array.from(yearSet).sort((a, b) => b - a);
+  }, [state.analyses]);
+
   useEffect(() => {
-    if (stationId && (Array.isArray(stationId) ? stationId.length > 0 : true)) {
+    isMounted.current = true;
+    
+    const shouldFetch = stationId && (Array.isArray(stationId) ? stationId.length > 0 : true);
+    
+    if (shouldFetch) {
       fetchAnalyses();
+    } else {
+      setState({
+        analyses: [],
+        loading: false,
+        error: null
+      });
     }
+    
     return () => {
       isMounted.current = false;
     };
-  }, [fetchAnalyses]);
+  }, [stationIdMemo]);
 
   return {
     analyses: state.analyses,
-    years: state.years,
+    years,
     loading: state.loading,
     error: state.error,
     refetch: fetchAnalyses,

@@ -45,11 +45,19 @@ export default function TableActions({
   analysesLoading,
   onResetAllFilters,
 }: TableActionsProps) {
-  console.log('TableActions props:', { analysisStatus, analysisYear, years, analysesLoading });
+  // Generate year options based on analysis status
+  const getYearOptions = () => {
+    if (analysisStatus === 'analysed') {
+      // For analyzed stations, use actual years from data or fallback to standard range
+      return years.length > 0 ? years : generateYearRange(2020, 2030);
+    } else if (analysisStatus === 'not-analysed') {
+      // For non-analyzed stations, show standard year range
+      return generateYearRange(2020, 2030);
+    }
+    return []; // No years needed for 'all' status
+  };
 
-  const yearOptions = (analysisStatus === 'not-analysed' || years.length === 0) 
-    ? generateYearRange(2020, 2030) 
-    : years;
+  const yearOptions = getYearOptions();
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-lg border">
@@ -83,7 +91,12 @@ export default function TableActions({
         <span className="text-sm font-medium text-gray-700">Analyses PP :</span>
         <select
           value={analysisStatus}
-          onChange={(e) => onAnalysisStatusChange(e.target.value as 'all' | 'analysed' | 'not-analysed')}
+          onChange={(e) => {
+            const newStatus = e.target.value as 'all' | 'analysed' | 'not-analysed';
+            onAnalysisStatusChange(newStatus);
+            // Reset year when changing status
+            onAnalysisYearChange('all');
+          }}
           className="border rounded px-2 py-1 text-sm"
           disabled={analysesLoading}
         >
@@ -92,11 +105,10 @@ export default function TableActions({
           <option value="not-analysed">Stations Non Analysées</option>
         </select>
 
-        {(analysisStatus === 'analysed' || analysisStatus === 'not-analysed') && (
+        {analysisStatus !== 'all' && (
           <select
             value={analysisYear}
             onChange={(e) => {
-              console.log('Year dropdown changed to:', e.target.value);
               onAnalysisYearChange(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10));
             }}
             className="border rounded px-2 py-1 text-sm"
