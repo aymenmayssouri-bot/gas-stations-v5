@@ -1,7 +1,6 @@
-// src/components/stations/AnalyseForm.tsx
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Analyse } from '@/types/station';
 import { useAnalyseForm } from '@/hooks/useStationData/useAnalyseForm';
 import { Button } from '@/components/ui/Button';
@@ -11,90 +10,172 @@ import { ErrorMessage } from '@/components/ui/ErrorMessage';
 export interface AnalyseFormProps {
   mode: 'create' | 'edit';
   stationId: string;
-  analyse?: Analyse | null;
+  stationCode: string; // New prop for station code
+  analyse?: Analyse | null; // Kept for backward compatibility but not used
+  initialAnalyses?: Analyse[];
   onSaved?: () => void;
   onCancel?: () => void;
 }
 
-export function AnalyseForm({ mode, stationId, analyse, onSaved, onCancel }: AnalyseFormProps) {
-  const { form, updateField, submit, loading, submitting, errors, error } = useAnalyseForm(
+export function AnalyseForm({ mode, stationId, stationCode, initialAnalyses = [], onSaved, onCancel }: AnalyseFormProps) {
+  const { forms, addForm, removeForm, updateField, submit, deleteAnalyse, loading, submitting, errors, error } = useAnalyseForm(
     mode,
     stationId,
-    analyse || undefined
+    initialAnalyses
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await submit();
-    if (success) {
-      onSaved?.();
+    try {
+      const success = await submit();
+      if (success) {
+        onSaved?.();
+      }
+    } catch (error) {
+      // Optional: handle error case
+      console.error('Failed to submit:', error);
     }
   };
 
+  const handleDelete = async () => {
+    if (mode === 'edit' && initialAnalyses[0]?.AnalyseID) {
+      if (confirm("Êtes-vous sûr de vouloir supprimer cette analyse ?")) {
+        try {
+          const success = await deleteAnalyse(initialAnalyses[0].AnalyseID);
+          if (success) {
+            onSaved?.();
+          }
+        } catch (error) {
+          console.error('Failed to delete analyse:', error);
+        }
+      }
+    }
+  };
+
+  const handleAddAnalyse = () => {
+    if (forms.length < 2) {
+      addForm();
+    }
+  };
+
+  const handleRemoveAnalyse = (index: number) => {
+    removeForm(index);
+  };
+
+  // Format date input to automatically insert slashes (../../....)
+  const handleDateChange = useCallback((index: number, value: string) => {
+    // Remove non-digit characters except slashes
+    let cleaned = value.replace(/[^\d/]/g, '');
+
+    // Automatically insert slashes
+    if (cleaned.length > 2 && cleaned[2] !== '/') {
+      cleaned = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
+    }
+    if (cleaned.length > 5 && cleaned[5] !== '/') {
+      cleaned = cleaned.slice(0, 5) + '/' + cleaned.slice(5);
+    }
+    // Limit to 10 characters (dd/mm/yyyy)
+    if (cleaned.length > 10) {
+      cleaned = cleaned.slice(0, 10);
+    }
+
+    updateField(index, 'DateAnalyse', cleaned);
+  }, [updateField]);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6 text-gray-900">
+      <h2 className="text-lg font-medium text-gray-900">
+        Analyse Form: Station - {stationCode}
+      </h2>
       {error && <ErrorMessage message={error} />}
       {errors.__form && <ErrorMessage message={errors.__form} />}
 
-      <fieldset className="space-y-6">
-        {/* Remove legend since the title is already in the modal header */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Produit Analyse */}
-          <div className="flex flex-col">
-            <label className="text-sm font-medium text-gray-900 mb-1">Produit Analysé</label>
-            <select
-              value={form.ProduitAnalyse}
-              onChange={(e) => updateField('ProduitAnalyse', e.target.value as 'Gasoil' | 'SSP')}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="Gasoil">Gasoil</option>
-              <option value="SSP">SSP</option>
-            </select>
-          </div>
+      {forms.map((form, index) => (
+        <fieldset key={index} className="space-y-6 border-b pb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Produit Analyse */}
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-900 mb-1">Produit Analysé</label>
+              <select
+                value={form.ProduitAnalyse}
+                onChange={(e) => updateField(index, 'ProduitAnalyse', e.target.value as 'Gasoil' | 'SSP')}
+                className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="Gasoil">Gasoil</option>
+                <option value="SSP">SSP</option>
+              </select>
+            </div>
 
-          {/* Date Analyse */}
-          <Input
-            label="Date d'Analyse"
-            type="date"
-            value={form.DateAnalyse}
-            onChange={(e) => updateField('DateAnalyse', e.target.value)}
-            error={errors.DateAnalyse}
-            required
-          />
-
-          {/* Code Analyse */}
-          <Input
-            label="Code d'Analyse"
-            value={form.CodeAnalyse}
-            onChange={(e) => updateField('CodeAnalyse', e.target.value)}
-            error={errors.CodeAnalyse}
-            placeholder="Ex: AN2024001"
-            required
-          />
-
-          {/* Resultat Analyse */}
-          <div className="flex flex-col">
-            <label className="text-sm font-medium text-gray-900 mb-1">Résultat d'Analyse</label>
-            <select
-              value={form.ResultatAnalyse}
-              onChange={(e) => updateField('ResultatAnalyse', e.target.value as 'Positive' | 'Négative')}
-              className="border border-gray-300 rounded-md px-3 py-2"
+            {/* Date Analyse */}
+            <Input
+              label="Date d'Analyse (dd/mm/yyyy)"
+              type="text"
+              value={form.DateAnalyse}
+              onChange={(e) => handleDateChange(index, e.target.value)}
+              error={errors.forms?.[index]?.DateAnalyse}
+              placeholder="dd/mm/yyyy"
+              pattern="\d{2}/\d{2}/\d{4}"
               required
-            >
-              <option value="">-- Sélectionner --</option>
-              <option value="Positif">Positif</option>
-              <option value="Négatif">Négatif</option>
-            </select>
-            {errors.ResultatAnalyse && <span className="text-red-500 text-sm">{errors.ResultatAnalyse}</span>}
+            />
+
+            {/* Code Analyse */}
+            <Input
+              label="Code d'Analyse"
+              value={form.CodeAnalyse}
+              onChange={(e) => updateField(index, 'CodeAnalyse', e.target.value)}
+              error={errors.forms?.[index]?.CodeAnalyse}
+              placeholder="Ex: AN2024001"
+              required
+            />
+
+            {/* Resultat Analyse */}
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-900 mb-1">Résultat d'Analyse</label>
+              <select
+                value={form.ResultatAnalyse}
+                onChange={(e) => updateField(index, 'ResultatAnalyse', e.target.value as 'Positif' | 'Négatif')}
+                className="border border-gray-300 rounded-md px-3 py-2"
+                required
+              >
+                <option value="">-- Sélectionner --</option>
+                <option value="Positif">Positif</option>
+                <option value="Négatif">Négatif</option>
+              </select>
+              {errors.forms?.[index]?.ResultatAnalyse && (
+                <span className="text-red-500 text-sm">{errors.forms[index].ResultatAnalyse}</span>
+              )}
+            </div>
           </div>
-        </div>
-      </fieldset>
+
+          {forms.length > 1 && (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => handleRemoveAnalyse(index)}
+            >
+              Supprimer cette analyse
+            </Button>
+          )}
+        </fieldset>
+      ))}
+
+      {forms.length < 2 && mode === 'create' && (
+        <Button type="button" variant="secondary" onClick={handleAddAnalyse}>
+          Ajouter une analyse
+        </Button>
+      )}
 
       {/* Form Actions */}
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={submitting || loading}>
-          {mode === 'create' ? 'Créer l\'Analyse' : 'Enregistrer les Modifications'}
+          {mode === 'edit' ? "Modifier l'Analyse" : forms.length > 1 ? "Créer les Analyses" : "Créer l'Analyse"}
         </Button>
+
+        {mode === 'edit' && initialAnalyses[0]?.AnalyseID && (
+          <Button type="button" variant="destructive" onClick={handleDelete}>
+            Supprimer l'Analyse
+          </Button>
+        )}
         
         {onCancel && (
           <Button type="button" variant="secondary" onClick={onCancel}>

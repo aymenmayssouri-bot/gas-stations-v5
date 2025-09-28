@@ -1,8 +1,7 @@
-// src/app/stations/[id]/page.tsx
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { StationWithDetails, Analyse } from '@/types/station';
 import { useStations } from '@/hooks/stations/useStations';
 import { Card, CardHeader, CardContent, CardTitle, Button, LoadingSpinner, ErrorMessage } from '@/components/ui';
@@ -32,6 +31,9 @@ export default function StationDetailPage() {
   const [editingAnalyse, setEditingAnalyse] = useState<Analyse | undefined>(undefined);
 
   const stationAnalyses = analyses || [];
+
+  // Memoize initialAnalyses to prevent new array creation on each render
+  const initialAnalyses = useMemo(() => (editingAnalyse ? [editingAnalyse] : []), [editingAnalyse]);
 
   useEffect(() => {
     if (stations.length > 0) {
@@ -249,7 +251,8 @@ export default function StationDetailPage() {
         <AnalyseForm
           mode={analyseFormMode}
           stationId={id}
-          analyse={editingAnalyse}
+          stationCode={String(station.station.Code) || 'N/A'} // Convert Code to string
+          initialAnalyses={initialAnalyses}
           onSaved={handleAnalyseFormSaved}
           onCancel={handleAnalyseFormCancel}
         />

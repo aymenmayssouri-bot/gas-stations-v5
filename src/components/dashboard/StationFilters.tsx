@@ -1,10 +1,11 @@
 // src/components/dashboard/StationFilters.tsx
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { StationWithDetails } from '@/types/station';
 import { useAnalysesIndex } from '@/hooks/useStationData/useAnalysesIndex';
-import { Card, Button, Checkbox, CardHeader, CardContent, CardTitle } from '@/components/ui';
+import { Card, Checkbox, CardHeader, CardContent, CardTitle } from '@/components/ui';
+import { MultiSelectYearDropdown } from '@/components/stations/AnalyseFilter';
 
 interface StationFiltersProps {
   stations: StationWithDetails[];
@@ -15,6 +16,14 @@ const areAllSelected = (selected: string[], all: string[]) => {
   return all.length > 0 && selected.length === all.length;
 };
 
+const generateYearRange = (start: number, end: number): number[] => {
+  const years: number[] = [];
+  for (let year = start; year <= end; year++) {
+    years.push(year);
+  }
+  return years.reverse(); // Most recent first
+};
+
 export default function StationFilters({ stations, onFilterChange }: StationFiltersProps) {
   // ----- Filter State -----
   const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
@@ -22,7 +31,7 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
   const [selectedCommunes, setSelectedCommunes] = useState<string[]>([]);
   const [selectedMarques, setSelectedMarques] = useState<string[]>([]);
   const [analysisStatus, setAnalysisStatus] = useState<'all' | 'analysed' | 'not-analysed'>('all');
-  const [analysisYear, setAnalysisYear] = useState<number | 'all'>('all');
+  const [analysisYear, setAnalysisYear] = useState<number[]>([]);
 
   // ----- Memoized Filter Options -----
   const provinces = useMemo(() => Array.from(new Set(stations.map(s => s.province.NomProvince.trim()))).sort(), [stations]);
@@ -31,8 +40,8 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
   // Get all station IDs for analyses fetching
   const stationIds = useMemo(() => stations.map(s => s.station.StationID), [stations]);
   
-  // Fetch all analyses for filtering (pass empty string to get all analyses)
-  const { years, filterStationsByAnalysis, loading: analysesLoading } = useAnalysesIndex('');
+  // Fetch all analyses
+  const { analyses, years, loading: analysesLoading } = useAnalysesIndex(stationIds);
 
   const communes = useMemo(() => {
     if (selectedProvinces.length !== 1) return [];
@@ -59,7 +68,7 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
 
   useEffect(() => {
     if (!isCommuneFilterDisabled && communes.length > 0) {
-        setSelectedCommunes(communes);
+      setSelectedCommunes(communes);
     }
   }, [communes, isCommuneFilterDisabled]);
 
@@ -69,22 +78,82 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
   };
   
   const handleProvinceToggle = (p: string, checked: boolean) => {
-      setSelectedProvinces(prev => {
-          const newSelection = checked ? [...prev, p] : prev.filter(item => item !== p);
-          setSelectedCommunes([]); // Reset communes when province selection changes
-          return newSelection;
-      });
+    setSelectedProvinces(prev => {
+      const newSelection = checked ? [...prev, p] : prev.filter(item => item !== p);
+      setSelectedCommunes([]); // Reset communes when province selection changes
+      return newSelection;
+    });
   };
+
+  // ----- Analysis Filter Logic -----
+  const computeYearOptions = (status: 'all' | 'analysed' | 'not-analysed') => {
+    if (status === 'analysed') {
+      return years.length > 0 ? [...years].sort((a, b) => b - a) : generateYearRange(2020, new Date().getFullYear());
+    } else if (status === 'not-analysed') {
+      return generateYearRange(2020, new Date().getFullYear());
+    }
+    return [];
+  };
+
+  const yearOptions = useMemo(() => computeYearOptions(analysisStatus), [analysisStatus, years]);
+
+  const handleAnalysisStatusChange = (newStatus: 'all' | 'analysed' | 'not-analysed') => {
+    const availableYears = computeYearOptions(newStatus);
+    setAnalysisStatus(newStatus);
+    
+    if (newStatus !== 'all') {
+      // Set current year as default
+      const currentYear = new Date().getFullYear();
+      
+      if (availableYears.includes(currentYear)) {
+        setAnalysisYear([currentYear]);
+      } else if (availableYears.length > 0) {
+        setAnalysisYear([availableYears[0]]);
+      } else {
+        setAnalysisYear([]);
+      }
+    } else {
+      // Reset years when switching to 'all'
+      setAnalysisYear([]);
+    }
+  };
+
+  // Helper function to check if a station has analyses in specific years
+  const stationHasAnalysesInYears = useCallback((station: StationWithDetails, selectedYears: number[]) => {
+    if (selectedYears.length === 0) return true;
+    
+    const stationAnalyses = analyses.filter(a => a.StationID === station.station.StationID);
+    
+    return selectedYears.some(year => 
+      stationAnalyses.some(a => 
+        a.DateAnalyse && 
+        a.DateAnalyse instanceof Date && 
+        !isNaN(a.DateAnalyse.getTime()) && 
+        a.DateAnalyse.getFullYear() === year
+      )
+    );
+  }, [analyses]);
+
+  // Helper function to check if a station has NO analyses in ALL selected years
+  const stationHasNoAnalysesInYears = useCallback((station: StationWithDetails, selectedYears: number[]) => {
+    if (selectedYears.length === 0) return true;
+    
+    const stationAnalyses = analyses.filter(a => a.StationID === station.station.StationID);
+    
+    return selectedYears.every(year => {
+      const hasAnalysisInYear = stationAnalyses.some(a => 
+        a.DateAnalyse && 
+        a.DateAnalyse instanceof Date && 
+        !isNaN(a.DateAnalyse.getTime()) && 
+        a.DateAnalyse.getFullYear() === year
+      );
+      return !hasAnalysisInYear;
+    });
+  }, [analyses]);
 
   // ----- Filtered Data Calculation -----
   const filteredStations = useMemo(() => {
-    // First apply analysis filtering if not loading
-    let filtered = !analysesLoading ? 
-      filterStationsByAnalysis(stations, analysisStatus, analysisYear) : 
-      stations;
-
-    // Then apply other filters
-    return filtered.filter(s => {
+    let result = stations.filter(s => {
       const province = s.province.NomProvince.trim();
       const commune = s.commune.NomCommune.trim();
       const marque = s.marque.Marque.trim();
@@ -93,12 +162,38 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
       if (!selectedProvinces.includes(province)) return false;
       if (!isCommuneFilterDisabled && !selectedCommunes.includes(commune)) return false;
       if (!selectedMarques.includes(marque)) return false;
-      if (selectedStatuses.length === 0) return false;
-      if (!selectedStatuses.includes(status)) return false;
+      if (selectedStatuses.length > 0 && !selectedStatuses.includes(status)) return false;
       
       return true;
     });
-  }, [stations, selectedProvinces, selectedCommunes, selectedMarques, isCommuneFilterDisabled, analysisStatus, analysisYear, filterStationsByAnalysis, selectedStatuses, analysesLoading]);
+
+    // Apply analysis filter if not loading
+    if (!analysesLoading && analysisStatus !== 'all') {
+      result = result.filter(s => {
+        const hasAnalyses = analyses.some(a => a.StationID === s.station.StationID);
+        
+        if (analysisStatus === 'analysed') {
+          if (!hasAnalyses) return false;
+          
+          if (analysisYear.length > 0) {
+            return stationHasAnalysesInYears(s, analysisYear);
+          }
+          
+          return true;
+        } else if (analysisStatus === 'not-analysed') {
+          if (analysisYear.length > 0) {
+            return stationHasNoAnalysesInYears(s, analysisYear);
+          }
+          
+          return !hasAnalyses;
+        }
+        
+        return true;
+      });
+    }
+
+    return result;
+  }, [stations, selectedProvinces, selectedCommunes, selectedMarques, isCommuneFilterDisabled, selectedStatuses, analysesLoading, analysisStatus, analysisYear, analyses, stationHasAnalysesInYears, stationHasNoAnalysesInYears]);
 
   // ----- Inform Parent of Changes -----
   useEffect(() => {
@@ -274,40 +369,39 @@ export default function StationFilters({ stations, onFilterChange }: StationFilt
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {/* Status */}
-            <select
-              value={analysisStatus}
-              onChange={(e) =>
-                setAnalysisStatus(e.target.value as 'all' | 'analysed' | 'not-analysed')
-              }
-              className="border p-2 rounded w-full"
-              disabled={analysesLoading}
-            >
-              <option value="all">Toutes</option>
-              <option value="analysed">Stations Analysées</option>
-              <option value="not-analysed">Stations Non Analysées</option>
-            </select>
-
-            {/* Year, only if "analysed" */}
-            {analysisStatus === 'analysed' && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">Analyses PP :</span>
               <select
-                value={analysisYear}
-                onChange={(e) =>
-                  setAnalysisYear(
-                    e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10)
-                  )
-                }
-                className="border p-2 rounded w-full"
+                value={analysisStatus}
+                onChange={(e) => {
+                  handleAnalysisStatusChange(e.target.value as 'all' | 'analysed' | 'not-analysed');
+                }}
+                className="w-[200px] px-3 py-1.5 border rounded text-sm"
                 disabled={analysesLoading}
               >
-                <option value="all">Toutes les années</option>
-                {years.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
+                <option value="all">Toutes les stations</option>
+                <option value="analysed">Stations Analysées</option>
+                <option value="not-analysed">Stations Non Analysées</option>
               </select>
-            )}
+
+              {analysisStatus !== 'all' && (
+                <MultiSelectYearDropdown
+                  selectedYears={analysisYear}
+                  onYearsChange={(years) => {
+                    if (years.length === 0) {
+                      // Reset analysis status when removing last year
+                      setAnalysisStatus('all');
+                      setAnalysisYear([]);
+                    } else {
+                      setAnalysisYear(years);
+                    }
+                  }}
+                  yearOptions={yearOptions}
+                  disabled={analysesLoading}
+                  className="w-[200px]"
+                />
+              )}
+            </div>
             
             {analysesLoading && (
               <div className="text-sm text-gray-500">Chargement des analyses...</div>

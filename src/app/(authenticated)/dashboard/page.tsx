@@ -1,11 +1,11 @@
 // src/app/(authenticated)/dashboard/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStations } from '@/hooks/stations/useStations';
 import { StationWithDetails } from '@/types/station';
 
-// Import newly created dashboard components
+// Import dashboard components
 import StationFilters from '@/components/dashboard/StationFilters';
 import StationsByBrandChart from '@/components/dashboard/StationsByBrandChart';
 import StatsCards from '@/components/dashboard/StatsCards';
@@ -17,6 +17,13 @@ import { Card, CardHeader, CardContent, CardTitle, LoadingSpinner, ErrorMessage 
 export default function DashboardPage() {
   const { stations, loading, error } = useStations();
   const [filteredStations, setFilteredStations] = useState<StationWithDetails[]>([]);
+
+  useEffect(() => {
+    // Initialize filteredStations with all stations when stations are loaded
+    if (!loading && stations.length > 0) {
+      setFilteredStations(stations);
+    }
+  }, [stations, loading]);
 
   if (loading) {
     return (
@@ -30,7 +37,7 @@ export default function DashboardPage() {
     return (
       <div className="p-6">
         <ErrorMessage message={error} />
-      </div> 
+      </div>
     );
   }
 

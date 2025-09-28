@@ -13,14 +13,28 @@ npx tailwindcss init -p
 
 # to do list 
 
+
+create a new station -- form:
+numero de mise en service --> should allow empty 
+
+propriétaire after update --> N/
+A
+
+
 1-overview of code and files (security, delete, optimize)
-2- wrap authentification pages
+
+
+2- wrap authentification pages / button Button in login ...
+
+
 3- Limit API by user
 
 5- Soft delete
+
+
 6- Search bar (doesn't delete text serched)
 
 
 6 station form : --> overview form fields validations and style
 
-7- button Button in login ...
+

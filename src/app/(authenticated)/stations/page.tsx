@@ -140,7 +140,7 @@ export default function StationsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [columnFilters, setColumnFilters] = useState<FilterConfig[]>([]);
   const [analysisStatus, setAnalysisStatus] = useState<'all' | 'analysed' | 'not-analysed'>('all');
-  const [analysisYear, setAnalysisYear] = useState<number | 'all'>('all');
+  const [analysisYear, setAnalysisYear] = useState<number[]>([]);
   const [triggerExport, setTriggerExport] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -160,6 +160,40 @@ export default function StationsPage() {
       analyses: analyses.filter(a => a.StationID === s.station.StationID)
     }));
   }, [stations, analyses, loading, analysesLoading]);
+
+  // Helper function to check if a station has analyses in specific years
+  const stationHasAnalysesInYears = useCallback((station: StationWithDetails, selectedYears: number[]) => {
+    if (selectedYears.length === 0) return true; // No year filter means all years
+    
+    const stationAnalyses = analyses.filter(a => a.StationID === station.station.StationID);
+    
+    return selectedYears.some(year => 
+      stationAnalyses.some(a => 
+        a.DateAnalyse && 
+        a.DateAnalyse instanceof Date && 
+        !isNaN(a.DateAnalyse.getTime()) && 
+        a.DateAnalyse.getFullYear() === year
+      )
+    );
+  }, [analyses]);
+
+  // Helper function to check if a station has NO analyses in ALL selected years
+  const stationHasNoAnalysesInYears = useCallback((station: StationWithDetails, selectedYears: number[]) => {
+    if (selectedYears.length === 0) return true; // No year filter means all years
+    
+    const stationAnalyses = analyses.filter(a => a.StationID === station.station.StationID);
+    
+    // Station must have no analyses for ALL selected years
+    return selectedYears.every(year => {
+      const hasAnalysisInYear = stationAnalyses.some(a => 
+        a.DateAnalyse && 
+        a.DateAnalyse instanceof Date && 
+        !isNaN(a.DateAnalyse.getTime()) && 
+        a.DateAnalyse.getFullYear() === year
+      );
+      return !hasAnalysisInYear;
+    });
+  }, [analyses]);
 
   const handleAddNew = () => {
     setEditingStation(undefined);
@@ -249,7 +283,7 @@ export default function StationsPage() {
       );
     }
 
-    // Analysis status filter - only apply if both status and year are selected
+    // Analysis status and year filter
     if (analysisStatus !== 'all') {
       result = result.filter(s => {
         const hasAnalyses = s.analyses && s.analyses.length > 0;
@@ -257,19 +291,19 @@ export default function StationsPage() {
         if (analysisStatus === 'analysed') {
           if (!hasAnalyses) return false;
           
-          // If a specific year is selected, check if station has analyses for that year
-          if (analysisYear !== 'all') {
-            return s.analyses.some(a => 
-              a.DateAnalyse && 
-              a.DateAnalyse instanceof Date && 
-              !isNaN(a.DateAnalyse.getTime()) && 
-              a.DateAnalyse.getFullYear() === analysisYear
-            );
+          // If specific years are selected, check if station has analyses in those years
+          if (analysisYear.length > 0) {
+            return stationHasAnalysesInYears(s, analysisYear);
           }
           
           return true; // Has analyses, no specific year filter
         } else if (analysisStatus === 'not-analysed') {
-          return !hasAnalyses;
+          // If specific years are selected, check if station has no analyses in all those years
+          if (analysisYear.length > 0) {
+            return stationHasNoAnalysesInYears(s, analysisYear);
+          }
+          
+          return !hasAnalyses; // No analyses at all
         }
         
         return true;
@@ -277,7 +311,7 @@ export default function StationsPage() {
     }
 
     return result;
-  }, [stationsWithAnalyses, searchQuery, analysisStatus, analysisYear]);
+  }, [stationsWithAnalyses, searchQuery, analysisStatus, analysisYear, stationHasAnalysesInYears, stationHasNoAnalysesInYears]);
 
   // Column filtering
   const allFiltered = useMemo(() => {
@@ -349,7 +383,7 @@ export default function StationsPage() {
     setColumnFilters([]);
     setSearchQuery('');
     setAnalysisStatus('all');
-    setAnalysisYear('all');
+    setAnalysisYear([]);
     setCurrentPage(1);
     setSortConfig({ key: 'Code', direction: 'asc' });
   }, []);

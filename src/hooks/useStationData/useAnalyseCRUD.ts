@@ -110,16 +110,17 @@ export function useAnalyseCRUD() {
     }
   }, []);
 
-  const deleteAnalyse = useCallback(async (analyseId: string) => {
-    setLoading(true); 
+  const deleteAnalyse = useCallback(async (analyseId: string): Promise<boolean> => {
+    setLoading(true);
     setError(null);
     try {
       await deleteDoc(doc(db, COLLECTIONS.ANALYSES, analyseId));
+      return true;
     } catch (err: any) {
-      setError(`Failed to delete analyse: ${err.message}`); 
-      throw err;
-    } finally { 
-      setLoading(false); 
+      setError(`Failed to delete analyse: ${err.message}`);
+      return false;
+    } finally {
+      setLoading(false);
     }
   }, []);
 

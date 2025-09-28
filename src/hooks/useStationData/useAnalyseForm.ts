@@ -1,4 +1,3 @@
-// src/hooks/useStationData/useAnalyseForm.ts
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
@@ -9,13 +8,18 @@ type Mode = 'create' | 'edit';
 
 interface AnalyseFormData {
   ProduitAnalyse: 'Gasoil' | 'SSP';
-  DateAnalyse: string;
+  DateAnalyse: string; // Stores date as dd/mm/yyyy string
   CodeAnalyse: string;
   ResultatAnalyse: 'Positif' | 'Négatif';
 }
 
-export function useAnalyseForm(mode: Mode, stationId: string, analyse?: Analyse) {
-  const { createAnalyse, updateAnalyse, loading, error } = useAnalyseCRUD();
+interface Errors {
+  forms: Partial<Record<keyof AnalyseFormData, string>>[];
+  __form?: string;
+}
+
+export function useAnalyseForm(mode: Mode, stationId: string, initialAnalyses: Analyse[] = []) {
+  const { createAnalyse, updateAnalyse, deleteAnalyse: deleteAnalyseMutation, loading, error } = useAnalyseCRUD();
 
   const emptyForm: AnalyseFormData = {
     ProduitAnalyse: 'Gasoil',
@@ -24,79 +28,118 @@ export function useAnalyseForm(mode: Mode, stationId: string, analyse?: Analyse)
     ResultatAnalyse: 'Positif',
   };
 
-  const [form, setForm] = useState<AnalyseFormData>(emptyForm);
-  const [errors, setErrors] = useState<Partial<Record<keyof AnalyseFormData | '__form', string>>>({});
+  const [forms, setForms] = useState<AnalyseFormData[]>([emptyForm]);
+  const [errors, setErrors] = useState<Errors>({ forms: [{}] });
   const [submitting, setSubmitting] = useState(false);
 
-  // Load existing analyse data in edit mode
+  // Load existing analyse data in edit mode or initialize with provided analyses
   useEffect(() => {
-    if (mode === 'edit' && analyse) {
-      // Ensure DateAnalyse is properly converted to string for input
-      let dateString = '';
-      if (analyse.DateAnalyse) {
-        try {
-          const date = analyse.DateAnalyse instanceof Date ? 
-            analyse.DateAnalyse : 
-            new Date(analyse.DateAnalyse);
-          
-          if (!isNaN(date.getTime())) {
-            dateString = date.toISOString().split('T')[0];
+    if (mode === 'edit' && initialAnalyses.length > 0) {
+      const formattedForms = initialAnalyses.map(analyse => {
+        let dateString = '';
+        if (analyse.DateAnalyse) {
+          try {
+            const date = analyse.DateAnalyse instanceof Date
+              ? analyse.DateAnalyse
+              : new Date(analyse.DateAnalyse);
+            if (!isNaN(date.getTime())) {
+              dateString = date.toLocaleDateString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              });
+            }
+          } catch (err) {
+            console.warn('Invalid date in analyse:', analyse.DateAnalyse);
           }
-        } catch (error) {
-          console.warn('Invalid date in analyse:', analyse.DateAnalyse);
+        }
+
+        return {
+          ProduitAnalyse: analyse.ProduitAnalyse || 'Gasoil',
+          DateAnalyse: dateString,
+          CodeAnalyse: analyse.CodeAnalyse || '',
+          ResultatAnalyse: analyse.ResultatAnalyse || 'Positif',
+        };
+      });
+      setForms(formattedForms);
+      setErrors({ forms: Array(formattedForms.length).fill({}) });
+    } else {
+      setForms([emptyForm]);
+      setErrors({ forms: [{}] });
+    }
+  }, [mode, initialAnalyses]);
+
+  // Add a new empty form
+  const addForm = useCallback(() => {
+    setForms(prev => [...prev, emptyForm]);
+    setErrors(prev => ({ ...prev, forms: [...prev.forms, {}] }));
+  }, []);
+
+  // Remove a form by index
+  const removeForm = useCallback((index: number) => {
+    setForms(prev => prev.filter((_, i) => i !== index));
+    setErrors(prev => ({
+      ...prev,
+      forms: prev.forms.filter((_, i) => i !== index),
+    }));
+  }, []);
+
+  // Update field in a specific form
+  const updateField = useCallback((index: number, key: keyof AnalyseFormData, value: string) => {
+    setForms(prev => {
+      const newForms = [...prev];
+      newForms[index] = { ...newForms[index], [key]: value };
+      return newForms;
+    });
+    setErrors(prev => {
+      const newFormsErrors = [...prev.forms];
+      newFormsErrors[index] = { ...newFormsErrors[index], [key]: undefined };
+      return { ...prev, forms: newFormsErrors };
+    });
+  }, []);
+
+  // Validate all forms
+  const validateForm = useCallback((): boolean => {
+    const newErrors: Errors = { forms: forms.map(() => ({})) };
+    let isValid = true;
+
+    forms.forEach((form, index) => {
+      if (!form.CodeAnalyse.trim()) {
+        newErrors.forms[index].CodeAnalyse = "Code d'analyse requis";
+        isValid = false;
+      }
+
+      if (!form.ResultatAnalyse.trim()) {
+        newErrors.forms[index].ResultatAnalyse = "Résultat d'analyse requis";
+        isValid = false;
+      }
+
+      if (!form.DateAnalyse) {
+        newErrors.forms[index].DateAnalyse = "Date d'analyse requise";
+        isValid = false;
+      } else {
+        const [day, month, year] = form.DateAnalyse.split('/').map(Number);
+        const date = new Date(year, month - 1, day);
+        if (
+          isNaN(date.getTime()) ||
+          date.getDate() !== day ||
+          date.getMonth() !== month - 1 ||
+          date.getFullYear() !== year
+        ) {
+          newErrors.forms[index].DateAnalyse = 'Date invalide (format: jj/mm/aaaa)';
+          isValid = false;
         }
       }
-
-      setForm({
-        ProduitAnalyse: analyse.ProduitAnalyse || 'Gasoil',
-        DateAnalyse: dateString,
-        CodeAnalyse: analyse.CodeAnalyse || '',
-        ResultatAnalyse: analyse.ResultatAnalyse || 'Positif',
-      });
-    } else {
-      setForm(emptyForm);
-    }
-    setErrors({});
-  }, [mode, analyse]);
-
-  // General field updater
-  const updateField = useCallback((key: keyof AnalyseFormData, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    // Clear error when field is updated
-    if (errors[key]) {
-      setErrors(prev => ({ ...prev, [key]: undefined }));
-    }
-  }, [errors]);
-
-  // Validation function
-  const validateForm = useCallback((): boolean => {
-    const newErrors: Partial<Record<keyof AnalyseFormData, string>> = {};
-
-    if (!form.CodeAnalyse.trim()) {
-      newErrors.CodeAnalyse = 'Code d\'analyse requis';
-    }
-
-    if (!form.ResultatAnalyse.trim()) {
-      newErrors.ResultatAnalyse = 'Résultat d\'analyse requis';
-    }
-
-    if (!form.DateAnalyse) {
-      newErrors.DateAnalyse = 'Date d\'analyse requise';
-    } else {
-      const date = new Date(form.DateAnalyse);
-      if (isNaN(date.getTime())) {
-        newErrors.DateAnalyse = 'Date invalide';
-      }
-    }
+    });
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [form]);
+    return isValid;
+  }, [forms]);
 
-  // Submit function
+  // Submit all forms
   const submit = useCallback(async (): Promise<boolean> => {
     setSubmitting(true);
-    setErrors({});
+    setErrors({ forms: forms.map(() => ({})) });
 
     if (!validateForm()) {
       setErrors(prev => ({ ...prev, __form: 'Veuillez corriger les erreurs du formulaire.' }));
@@ -105,36 +148,45 @@ export function useAnalyseForm(mode: Mode, stationId: string, analyse?: Analyse)
     }
 
     try {
-      const analyseData: Omit<Analyse, 'AnalyseID'> = {
-        StationID: stationId,
-        ProduitAnalyse: form.ProduitAnalyse,
-        DateAnalyse: new Date(form.DateAnalyse),
-        CodeAnalyse: form.CodeAnalyse.trim(),
-        ResultatAnalyse: form.ResultatAnalyse as 'Positif' | 'Négatif',
-      };
+      for (let i = 0; i < forms.length; i++) {
+        const form = forms[i];
+        const [day, month, year] = form.DateAnalyse.split('/').map(Number);
+        const date = new Date(year, month - 1, day);
 
-      if (mode === 'create') {
-        await createAnalyse(analyseData);
-      } else if (mode === 'edit' && analyse?.AnalyseID) {
-        await updateAnalyse(analyse.AnalyseID, analyseData);
+        const analyseData: Omit<Analyse, 'AnalyseID'> = {
+          StationID: stationId,
+          ProduitAnalyse: form.ProduitAnalyse,
+          DateAnalyse: date,
+          CodeAnalyse: form.CodeAnalyse.trim(),
+          ResultatAnalyse: form.ResultatAnalyse as 'Positif' | 'Négatif',
+        };
+
+        if (mode === 'create') {
+          await createAnalyse(analyseData);
+        } else if (mode === 'edit' && initialAnalyses[i]?.AnalyseID) {
+          await updateAnalyse(initialAnalyses[i].AnalyseID, analyseData);
+        }
       }
 
-
-      
       setSubmitting(false);
       return true;
     } catch (err) {
-      console.error('Error saving analyse:', err);
-      setErrors({ __form: "Une erreur est survenue lors de l'enregistrement." });
+      console.error('Error saving analyses:', err);
+      setErrors({ forms: forms.map(() => ({})), __form: "Une erreur est survenue lors de l'enregistrement." });
       setSubmitting(false);
       return false;
     }
-  }, [form, mode, stationId, analyse?.AnalyseID, createAnalyse, updateAnalyse, validateForm]);
+  }, [forms, mode, stationId, initialAnalyses, createAnalyse, updateAnalyse, validateForm]);
 
   return {
-    form,
+    forms,
+    addForm,
+    removeForm,
     updateField,
     submit,
+    deleteAnalyse: async (analyseId: string) => {
+      return await deleteAnalyseMutation(analyseId);
+    },
     loading,
     submitting,
     errors,
