@@ -11,6 +11,7 @@ import { FileSpreadsheet } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import proj4 from 'proj4';
+import { formatDate } from '@/utils/format'; // Import formatDate function
 
 // Define projections for ESPG:26191 (Merchich) and WGS84
 proj4.defs('EPSG:26191', '+proj=lcc +lat_1=33.3 +lat_0=33.3 +lon_0=-5.4 +k_0=0.999625769 +x_0=500000 +y_0=300000 +ellps=clrk80ign +towgs84=31,146,47,0,0,0,0 +units=m +no_defs');
@@ -38,10 +39,10 @@ export default function NearbyStationsPage() {
   const [xError, setXError] = useState<string>('');
   const [yError, setYError] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false); // New state to track if search was performed
+  const [hasSearched, setHasSearched] = useState(false);
   const { nearbyStations, nearbyLoading, nearbyError, fetchNearbyStations, stationsLoading, stationsError } = useNearbyStations();
 
-  // Handle export (unchanged)
+  // Handle export with specified columns
   const handleExport = async () => {
     if (nearbyStations.length === 0) return;
 
@@ -52,14 +53,16 @@ export default function NearbyStationsPage() {
 
       worksheet.columns = [
         { header: 'Code', key: 'code', width: 15 },
-        { header: 'Nom Station', key: 'nomStation', width: 25 },
         { header: 'Marque', key: 'marque', width: 20 },
-        { header: 'Adresse', key: 'adresse', width: 30 },
-        { header: 'Province', key: 'province', width: 20 },
-        { header: 'Commune', key: 'commune', width: 20 },
-        { header: 'Distance (km)', key: 'distance', width: 15 },
+        { header: 'Type', key: 'type', width: 15 },
         { header: 'Latitude', key: 'latitude', width: 15 },
-        { header: 'Longitude', key: 'longitude', width: 15 }
+        { header: 'Longitude', key: 'longitude', width: 15 },
+        { header: 'Gérant', key: 'gerant', width: 25 },
+        { header: 'Date de création', key: 'creationDate', width: 15 },
+        { header: 'Distance (km)', key: 'distance', width: 15 },
+        { header: 'Nombre de volucompteur', key: 'nombreVolucompteur', width: 20 },
+        { header: 'Capacité Gasoil', key: 'capaciteGasoil', width: 15 },
+        { header: 'Capacité SSP', key: 'capaciteSSP', width: 15 },
       ];
 
       nearbyStations.forEach(station => {
@@ -67,16 +70,22 @@ export default function NearbyStationsPage() {
           ? station.distance.toFixed(2)
           : 'N/A';
 
+        // Find Gasoil and SSP capacities
+        const capaciteGasoil = station.capacites.find(c => c.TypeCarburant === 'Gasoil')?.CapaciteLitres || 0;
+        const capaciteSSP = station.capacites.find(c => c.TypeCarburant === 'SSP')?.CapaciteLitres || 0;
+
         worksheet.addRow({
           code: station.station.Code || '-',
-          nomStation: station.station.NomStation || '-',
           marque: station.marque?.Marque || '-',
-          adresse: station.station.Adresse || '-',
-          province: station.province?.NomProvince || '-',
-          commune: station.commune?.NomCommune || '-',
-          distance: distanceValue,
+          type: station.station.Type || '-',
           latitude: station.station.Latitude || '-',
-          longitude: station.station.Longitude || '-'
+          longitude: station.station.Longitude || '-',
+          gerant: station.gerant?.fullName || `${station.gerant?.PrenomGerant || ''} ${station.gerant?.NomGerant || ''}`.trim() || '-',
+          creationDate: station.creationAutorisation ? formatDate(station.creationAutorisation.DateAutorisation) : 'N/A',
+          distance: distanceValue,
+          nombreVolucompteur: station.station.NombreVolucompteur || 0,
+          capaciteGasoil: capaciteGasoil || '-',
+          capaciteSSP: capaciteSSP || '-',
         });
       });
 
@@ -98,7 +107,7 @@ export default function NearbyStationsPage() {
     setLongitudeError('');
     setXError('');
     setYError('');
-    setHasSearched(true); // Set hasSearched to true when search is initiated
+    setHasSearched(true);
 
     let lat: number, lng: number;
 
@@ -108,22 +117,22 @@ export default function NearbyStationsPage() {
 
       if (isNaN(lat)) {
         setLatitudeError('Veuillez entrer une latitude valide.');
-        setHasSearched(false); // Reset hasSearched if validation fails
+        setHasSearched(false);
         return;
       }
       if (lat < -90 || lat > 90) {
         setLatitudeError('La latitude doit être comprise entre -90 et 90.');
-        setHasSearched(false); // Reset hasSearched if validation fails
+        setHasSearched(false);
         return;
       }
       if (isNaN(lng)) {
         setLongitudeError('Veuillez entrer une longitude valide.');
-        setHasSearched(false); // Reset hasSearched if validation fails
+        setHasSearched(false);
         return;
       }
       if (lng < -180 || lng > 180) {
         setLongitudeError('La longitude doit être comprise entre -180 et 180.');
-        setHasSearched(false); // Reset hasSearched if validation fails
+        setHasSearched(false);
         return;
       }
     } else {
@@ -132,22 +141,22 @@ export default function NearbyStationsPage() {
 
       if (isNaN(x)) {
         setXError('Veuillez entrer une coordonnée X valide.');
-        setHasSearched(false); // Reset hasSearched if validation fails
+        setHasSearched(false);
         return;
       }
       if (x < 0 || x > 920000) {
         setXError('La coordonnée X doit être comprise entre 0 et 920000.');
-        setHasSearched(false); // Reset hasSearched if validation fails
+        setHasSearched(false);
         return;
       }
       if (isNaN(y)) {
         setYError('Veuillez entrer une coordonnée Y valide.');
-        setHasSearched(false); // Reset hasSearched if validation fails
+        setHasSearched(false);
         return;
       }
       if (y < 0 || y > 591000) {
         setYError('La coordonnée Y doit être comprise entre 0 et 591000.');
-        setHasSearched(false); // Reset hasSearched if validation fails
+        setHasSearched(false);
         return;
       }
 
@@ -155,7 +164,7 @@ export default function NearbyStationsPage() {
         const [lon, latConverted] = proj4('EPSG:26191', 'EPSG:4326', [x, y]);
         if (isNaN(latConverted) || isNaN(lon)) {
           setXError('Erreur lors de la conversion des coordonnées.');
-          setHasSearched(false); // Reset hasSearched if validation fails
+          setHasSearched(false);
           return;
         }
         lat = latConverted;
@@ -165,7 +174,7 @@ export default function NearbyStationsPage() {
       } catch (error) {
         console.error('Conversion error:', error);
         setXError('Erreur lors de la conversion des coordonnées.');
-        setHasSearched(false); // Reset hasSearched if validation fails
+        setHasSearched(false);
         return;
       }
     }
@@ -183,20 +192,20 @@ export default function NearbyStationsPage() {
     setLongitudeError('');
     setXError('');
     setYError('');
-    setHasSearched(false); // Reset hasSearched when coordinate system changes
+    setHasSearched(false);
   };
 
   // Handle X and Y input changes with formatting
   const handleXCoordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     const parsedValue = parseNumberWithSpaces(value);
-    setXCoord(parsedValue); // Store the raw value (no spaces)
+    setXCoord(parsedValue);
   };
 
   const handleYCoordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     const parsedValue = parseNumberWithSpaces(value);
-    setYCoord(parsedValue); // Store the raw value (no spaces)
+    setYCoord(parsedValue);
   };
 
   const isGeographic = coordinateSystem === 'geographic';
@@ -254,9 +263,9 @@ export default function NearbyStationsPage() {
                 <div className="flex-1">
                   <label className="block text-sm font-medium mb-1">X (Easting)</label>
                   <Input
-                    type="text" // Use text instead of number to allow spaces
+                    type="text"
                     placeholder="X (84 026 ... 350 738)"
-                    value={xCoord ? formatNumberWithSpaces(xCoord) : ''} // Format for display
+                    value={xCoord ? formatNumberWithSpaces(xCoord) : ''}
                     onChange={handleXCoordChange}
                     className={`w-full ${xError ? 'border-red-500' : ''}`}
                   />
@@ -265,9 +274,9 @@ export default function NearbyStationsPage() {
                 <div className="flex-1">
                   <label className="block text-sm font-medium mb-1">Y (Northing)</label>
                   <Input
-                    type="text" // Use text instead of number to allow spaces
+                    type="text"
                     placeholder="Y (21 241 ... 255 390)"
-                    value={yCoord ? formatNumberWithSpaces(yCoord) : ''} // Format for display
+                    value={yCoord ? formatNumberWithSpaces(yCoord) : ''}
                     onChange={handleYCoordChange}
                     className={`w-full ${yError ? 'border-red-500' : ''}`}
                   />
