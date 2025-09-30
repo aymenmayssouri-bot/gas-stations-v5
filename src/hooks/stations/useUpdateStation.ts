@@ -364,9 +364,10 @@ export function useUpdateStation() {
       capacitesSnap.forEach((docSnap) => batch.delete(docSnap.ref));
 
       if (formData.CapaciteGasoil.trim()) {
-        const gasoilRef = doc(collection(db, COLLECTIONS.CAPACITES_STOCKAGE).withConverter(capaciteConverter));
+        const gasoilId = generateUUID();
+        const gasoilRef = doc(db, COLLECTIONS.CAPACITES_STOCKAGE, gasoilId).withConverter(capaciteConverter);
         const gasoil: CapaciteStockage = {
-          CapaciteID: gasoilRef.id,
+          CapaciteID: gasoilId,
           StationID: stationId,
           TypeCarburant: 'Gasoil',
           CapaciteLitres: parseFloat(formData.CapaciteGasoil),
@@ -375,9 +376,10 @@ export function useUpdateStation() {
       }
 
       if (formData.CapaciteSSP.trim()) {
-        const sspRef = doc(collection(db, COLLECTIONS.CAPACITES_STOCKAGE).withConverter(capaciteConverter));
+        const sspId = generateUUID();
+        const sspRef = doc(db, COLLECTIONS.CAPACITES_STOCKAGE, sspId).withConverter(capaciteConverter);
         const ssp: CapaciteStockage = {
-          CapaciteID: sspRef.id,
+          CapaciteID: sspId,
           StationID: stationId,
           TypeCarburant: 'SSP',
           CapaciteLitres: parseFloat(formData.CapaciteSSP),
