@@ -36,6 +36,15 @@ import {
 } from '@/lib/firebase/converters';
 import { COLLECTIONS } from '@/lib/firebase/collections';
 
+// Helper to generate UUID v4
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 // Helper to atomically get the next station code (serial)
 async function getNextStationCode(): Promise<number> {
   const { doc, increment } = await import('firebase/firestore');
@@ -83,16 +92,14 @@ export function useCreateStation() {
           });
         }
       } else {
-        const marqueRef = doc(
-          collection(db, COLLECTIONS.MARQUES).withConverter(marqueConverter)
-        );
+        marqueId = generateUUID();
+        const marqueRef = doc(db, COLLECTIONS.MARQUES, marqueId).withConverter(marqueConverter);
         const marque: Marque = {
-          MarqueID: marqueRef.id,
+          MarqueID: marqueId,
           Marque: formData.Marque.trim(),
           RaisonSociale: formData.RaisonSociale.trim(),
         };
         batch.set(marqueRef, marque);
-        marqueId = marqueRef.id;
       }
 
       // 2. Province
@@ -107,15 +114,13 @@ export function useCreateStation() {
       if (!provSnap.empty) {
         provinceId = provSnap.docs[0].id;
       } else {
-        const provRef = doc(
-          collection(db, COLLECTIONS.PROVINCES).withConverter(provinceConverter)
-        );
+        provinceId = generateUUID();
+        const provRef = doc(db, COLLECTIONS.PROVINCES, provinceId).withConverter(provinceConverter);
         const province: Province = {
-          ProvinceID: provRef.id,
+          ProvinceID: provinceId,
           NomProvince: formData.Province.trim(),
         };
         batch.set(provRef, province);
-        provinceId = provRef.id;
       }
 
       // 3. Commune
@@ -131,16 +136,14 @@ export function useCreateStation() {
       if (!commSnap.empty) {
         communeId = commSnap.docs[0].id;
       } else {
-        const commRef = doc(
-          collection(db, COLLECTIONS.COMMUNES).withConverter(communeConverter)
-        );
+        communeId = generateUUID();
+        const commRef = doc(db, COLLECTIONS.COMMUNES, communeId).withConverter(communeConverter);
         const commune: Commune = {
-          CommuneID: commRef.id,
+          CommuneID: communeId,
           NomCommune: formData.Commune.trim(),
           ProvinceID: provinceId,
         };
         batch.set(commRef, commune);
-        communeId = commRef.id;
       }
 
       // 4. Gerant
@@ -160,21 +163,19 @@ export function useCreateStation() {
           Telephone: formData.Telephone.trim() || undefined,
         });
       } else {
-        const gerantRef = doc(
-          collection(db, COLLECTIONS.GERANTS).withConverter(gerantConverter)
-        );
+        gerantId = generateUUID();
+        const gerantRef = doc(db, COLLECTIONS.GERANTS, gerantId).withConverter(gerantConverter);
         const gerant: Gerant = {
-          GerantID: gerantRef.id,
+          GerantID: gerantId,
           PrenomGerant: formData.PrenomGerant.trim(),
           NomGerant: formData.NomGerant.trim(),
           CINGerant: formData.CINGerant.trim(),
           Telephone: formData.Telephone.trim() || undefined,
         };
         batch.set(gerantRef, gerant);
-        gerantId = gerantRef.id;
       }
 
-      // 5. Proprietaire
+      // 5. Proprietaire - FIXED VERSION with UUID
       let proprietaireId: string | undefined;
       const proprietaireName =
         formData.TypeProprietaire === 'Physique'
@@ -185,8 +186,9 @@ export function useCreateStation() {
         proprietaireName &&
         (formData.TypeProprietaire !== 'Physique' || formData.PrenomProprietaire.trim())
       ) {
-        // Check for existing owner
+        // Check for existing owner by searching in detail collections
         let existingPropId: string | undefined;
+        
         if (formData.TypeProprietaire === 'Physique') {
           const physQuery = query(
             collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES).withConverter(proprietairePhysiqueConverter),
@@ -208,57 +210,53 @@ export function useCreateStation() {
           }
         }
 
-        // Use existing ProprietaireID or create new
-        proprietaireId = existingPropId;
-        if (!proprietaireId) {
-          const propRef = doc(
-            collection(db, COLLECTIONS.PROPRIETAIRES).withConverter(proprietaireConverter)
-          );
-          proprietaireId = propRef.id;
+        if (existingPropId) {
+          // Use existing ProprietaireID
+          proprietaireId = existingPropId;
+          console.log('Reusing existing proprietaire with ID:', proprietaireId);
+        } else {
+          // Create new proprietaire with UUID
+          proprietaireId = generateUUID();
+          
           const proprietaire: Proprietaire = {
             ProprietaireID: proprietaireId,
             TypeProprietaire: formData.TypeProprietaire,
           };
-          console.log('Creating proprietaire with ID:', proprietaireId);
-          batch.set(propRef, proprietaire);
+          console.log('Creating new proprietaire with ID:', proprietaireId);
+          
+          // Use proprietaireId as document ID
+          const propRefWithId = doc(db, COLLECTIONS.PROPRIETAIRES, proprietaireId).withConverter(proprietaireConverter);
+          batch.set(propRefWithId, proprietaire);
 
+          // Create detail document with ProprietaireID field
           if (formData.TypeProprietaire === 'Physique') {
-            const physRef = doc(
-              collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES).withConverter(proprietairePhysiqueConverter)
-            );
+            const physRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES));
             const physique: ProprietairePhysique = {
               ProprietaireID: proprietaireId,
               NomProprietaire: formData.NomProprietaire.trim(),
               PrenomProprietaire: formData.PrenomProprietaire.trim(),
             };
-            console.log('Creating proprietaire_physique with ID:', proprietaireId);
+            console.log('Creating proprietaire_physique with ProprietaireID:', proprietaireId);
             batch.set(physRef, physique);
           } else {
-            const morRef = doc(
-              collection(db, COLLECTIONS.PROPRIETAIRES_MORALES).withConverter(proprietaireMoraleConverter)
-            );
+            const morRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES));
             const morale: ProprietaireMorale = {
               ProprietaireID: proprietaireId,
               NomEntreprise: formData.NomEntreprise.trim(),
             };
-            console.log('Creating proprietaire_morale with ID:', proprietaireId, 'NomEntreprise:', formData.NomEntreprise.trim());
+            console.log('Creating proprietaire_morale with ProprietaireID:', proprietaireId, 'NomEntreprise:', formData.NomEntreprise.trim());
             batch.set(morRef, morale);
           }
-        } else {
-          // Update existing owner if needed
-          const propRef = doc(db, COLLECTIONS.PROPRIETAIRES, proprietaireId).withConverter(proprietaireConverter);
-          batch.set(propRef, { ProprietaireID: proprietaireId, TypeProprietaire: formData.TypeProprietaire }, { merge: true });
         }
       }
 
-      // 6. Station
-      const stationRef = doc(
-        collection(db, COLLECTIONS.STATIONS).withConverter(stationConverter)
-      );
+      // 6. Station with UUID
+      const stationId = generateUUID();
+      const stationRef = doc(db, COLLECTIONS.STATIONS, stationId).withConverter(stationConverter);
       const station: Station = {
+        StationID: stationId,
         Code: await getNextStationCode(),
         Statut: formData.Statut,
-        StationID: stationRef.id,
         NomStation: formData.NomStation.trim(),
         Adresse: formData.Adresse.trim(),
         Latitude: formData.Latitude ? parseFloat(formData.Latitude) : 0,
@@ -272,16 +270,16 @@ export function useCreateStation() {
         Commentaires: formData.Commentaires.trim() || '',
         NombreVolucompteur: formData.NombreVolucompteur ? parseInt(formData.NombreVolucompteur) : 0,
       };
-      console.log('Creating station with ProprietaireID:', proprietaireId);
+      console.log('Creating station with StationID:', stationId, 'ProprietaireID:', proprietaireId);
       batch.set(stationRef, station);
-      const stationId = stationRef.id;
 
-      // 7. Autorisation
+      // 7. Autorisation with UUID
       for (const autoData of formData.autorisations) {
         if (autoData.NumeroAutorisation.trim()) {
-          const autoRef = doc(collection(db, COLLECTIONS.AUTORISATIONS).withConverter(autorisationConverter));
+          const autoId = generateUUID();
+          const autoRef = doc(db, COLLECTIONS.AUTORISATIONS, autoId).withConverter(autorisationConverter);
           const autorisation: Autorisation = {
-            AutorisationID: autoRef.id,
+            AutorisationID: autoId,
             StationID: stationId,
             TypeAutorisation: autoData.TypeAutorisation,
             NumeroAutorisation: autoData.NumeroAutorisation.trim(),
@@ -291,13 +289,12 @@ export function useCreateStation() {
         }
       }
 
-      // 8. Capacites
+      // 8. Capacites with UUID
       if (formData.CapaciteGasoil.trim()) {
-        const capRef = doc(
-          collection(db, COLLECTIONS.CAPACITES_STOCKAGE).withConverter(capaciteConverter)
-        );
+        const capId = generateUUID();
+        const capRef = doc(db, COLLECTIONS.CAPACITES_STOCKAGE, capId).withConverter(capaciteConverter);
         const cap: CapaciteStockage = {
-          CapaciteID: capRef.id,
+          CapaciteID: capId,
           StationID: stationId,
           TypeCarburant: 'Gasoil',
           CapaciteLitres: parseFloat(formData.CapaciteGasoil),
@@ -306,11 +303,10 @@ export function useCreateStation() {
       }
 
       if (formData.CapaciteSSP.trim()) {
-        const capRef = doc(
-          collection(db, COLLECTIONS.CAPACITES_STOCKAGE).withConverter(capaciteConverter)
-        );
+        const capId = generateUUID();
+        const capRef = doc(db, COLLECTIONS.CAPACITES_STOCKAGE, capId).withConverter(capaciteConverter);
         const cap: CapaciteStockage = {
-          CapaciteID: capRef.id,
+          CapaciteID: capId,
           StationID: stationId,
           TypeCarburant: 'SSP',
           CapaciteLitres: parseFloat(formData.CapaciteSSP),

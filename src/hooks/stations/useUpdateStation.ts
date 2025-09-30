@@ -37,6 +37,15 @@ import {
   capaciteConverter,
 } from '@/lib/firebase/converters';
 
+// Helper to generate UUID v4
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 export function useUpdateStation() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +64,13 @@ export function useUpdateStation() {
       }
       const currentStation = stationSnap.data();
       const oldProprietaireId = currentStation?.ProprietaireID || '';
+      
+      // Check if StationID field is missing and add it if needed
+      const needsStationIdFix = !currentStation?.StationID;
+      const stationIdToUse = currentStation?.StationID || generateUUID();
+      if (needsStationIdFix) {
+        console.log(`⚠️ Station ${stationId} missing StationID field. Adding: ${stationIdToUse}`);
+      }
 
       /** -------------------------------
        * 1. Update Marque
@@ -72,14 +88,14 @@ export function useUpdateStation() {
           RaisonSociale: formData.RaisonSociale.trim(),
         });
       } else {
-        const newRef = doc(collection(db, COLLECTIONS.MARQUES).withConverter(marqueConverter));
+        marqueId = generateUUID();
+        const newRef = doc(db, COLLECTIONS.MARQUES, marqueId).withConverter(marqueConverter);
         const newMarque: Marque = {
-          MarqueID: newRef.id,
+          MarqueID: marqueId,
           Marque: formData.Marque.trim(),
           RaisonSociale: formData.RaisonSociale.trim(),
         };
         batch.set(newRef, newMarque);
-        marqueId = newRef.id;
       }
 
       /** -------------------------------
@@ -95,13 +111,13 @@ export function useUpdateStation() {
       if (!provinceSnap.empty) {
         provinceId = provinceSnap.docs[0].id;
       } else {
-        const newRef = doc(collection(db, COLLECTIONS.PROVINCES).withConverter(provinceConverter));
+        provinceId = generateUUID();
+        const newRef = doc(db, COLLECTIONS.PROVINCES, provinceId).withConverter(provinceConverter);
         const newProvince: Province = {
-          ProvinceID: newRef.id,
+          ProvinceID: provinceId,
           NomProvince: formData.Province.trim(),
         };
         batch.set(newRef, newProvince);
-        provinceId = newRef.id;
       }
 
       let communeId: string;
@@ -115,14 +131,14 @@ export function useUpdateStation() {
       if (!communeSnap.empty) {
         communeId = communeSnap.docs[0].id;
       } else {
-        const newRef = doc(collection(db, COLLECTIONS.COMMUNES).withConverter(communeConverter));
+        communeId = generateUUID();
+        const newRef = doc(db, COLLECTIONS.COMMUNES, communeId).withConverter(communeConverter);
         const newCommune: Commune = {
-          CommuneID: newRef.id,
+          CommuneID: communeId,
           NomCommune: formData.Commune.trim(),
           ProvinceID: provinceId,
         };
         batch.set(newRef, newCommune);
-        communeId = newRef.id;
       }
 
       /** -------------------------------
@@ -143,20 +159,20 @@ export function useUpdateStation() {
           Telephone: formData.Telephone.trim(),
         });
       } else {
-        const newRef = doc(collection(db, COLLECTIONS.GERANTS).withConverter(gerantConverter));
+        gerantId = generateUUID();
+        const newRef = doc(db, COLLECTIONS.GERANTS, gerantId).withConverter(gerantConverter);
         const newGerant: Gerant = {
-          GerantID: newRef.id,
+          GerantID: gerantId,
           NomGerant: formData.NomGerant.trim(),
           PrenomGerant: formData.PrenomGerant.trim(),
           CINGerant: formData.CINGerant.trim(),
           Telephone: formData.Telephone.trim(),
         };
         batch.set(newRef, newGerant);
-        gerantId = newRef.id;
       }
 
       /** -------------------------------
-       * 4. Update Proprietaire
+       * 4. Update Proprietaire - FIXED VERSION
        * ------------------------------ */
       let proprietaireId: string | undefined;
       const proprietaireName =
@@ -184,25 +200,23 @@ export function useUpdateStation() {
           }
         }
       } else {
-        // Check if existing ProprietaireID can be reused
-        let isTypeChanged = false;
-        let oldType: 'Physique' | 'Morale' | undefined;
-
+        // Check if we're updating an existing proprietaire or creating a new one
+        let shouldCreateNew = false;
+        let existingDetailsDocId: string | undefined;
+        
         if (oldProprietaireId) {
           const oldPropRef = doc(db, COLLECTIONS.PROPRIETAIRES, oldProprietaireId).withConverter(proprietaireConverter);
           const oldPropSnap = await getDoc(oldPropRef);
+          
           if (oldPropSnap.exists()) {
-            oldType = oldPropSnap.data().TypeProprietaire;
-            isTypeChanged = oldType !== formData.TypeProprietaire;
+            const oldType = oldPropSnap.data().TypeProprietaire;
+            const isTypeChanged = oldType !== formData.TypeProprietaire;
 
-            // Update type if changed
+            // If type changed, we need to delete old details and create new ones
             if (isTypeChanged) {
               batch.update(oldPropRef, { TypeProprietaire: formData.TypeProprietaire });
-            }
-            proprietaireId = oldProprietaireId;
-
-            // Delete old details if type changed
-            if (isTypeChanged && oldType) {
+              
+              // Delete old type details
               const oldDetailsCollection = oldType === 'Physique' ? COLLECTIONS.PROPRIETAIRES_PHYSIQUES : COLLECTIONS.PROPRIETAIRES_MORALES;
               const oldDetailsQuery = query(
                 collection(db, oldDetailsCollection),
@@ -212,80 +226,77 @@ export function useUpdateStation() {
               oldDetailsSnap.forEach((docSnap) => batch.delete(docSnap.ref));
             }
 
-            // Update or create details
-            if (formData.TypeProprietaire === 'Physique') {
+            proprietaireId = oldProprietaireId;
+
+            // Get existing details document (if same type and not changed)
+            if (!isTypeChanged) {
+              const detailsCollection = formData.TypeProprietaire === 'Physique' 
+                ? COLLECTIONS.PROPRIETAIRES_PHYSIQUES 
+                : COLLECTIONS.PROPRIETAIRES_MORALES;
+              
               const detailsQuery = query(
-                collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES).withConverter(proprietairePhysiqueConverter),
+                collection(db, detailsCollection),
                 where('ProprietaireID', '==', proprietaireId)
               );
               const detailsSnap = await getDocs(detailsQuery);
-
-              if (!detailsSnap.empty && !isTypeChanged) {
-                // Update existing Physique details
-                const detailsRef = detailsSnap.docs[0].ref;
-                batch.update(detailsRef, {
-                  NomProprietaire: formData.NomProprietaire.trim(),
-                  PrenomProprietaire: formData.PrenomProprietaire.trim(),
-                });
-              } else {
-                // Create new Physique details
-                const newDetailsRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES)).withConverter(proprietairePhysiqueConverter);
-                const physData: ProprietairePhysique = {
-                  ProprietaireID: proprietaireId,
-                  NomProprietaire: formData.NomProprietaire.trim(),
-                  PrenomProprietaire: formData.PrenomProprietaire.trim(),
-                };
-                batch.set(newDetailsRef, physData);
-              }
-            } else {
-              const detailsQuery = query(
-                collection(db, COLLECTIONS.PROPRIETAIRES_MORALES).withConverter(proprietaireMoraleConverter),
-                where('ProprietaireID', '==', proprietaireId)
-              );
-              const detailsSnap = await getDocs(detailsQuery);
-
-              if (!detailsSnap.empty && !isTypeChanged) {
-                // Update existing Morale details
-                const detailsRef = detailsSnap.docs[0].ref;
-                batch.update(detailsRef, {
-                  NomEntreprise: formData.NomEntreprise.trim(),
-                });
-              } else {
-                // Create new Morale details
-                const newDetailsRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES)).withConverter(proprietaireMoraleConverter);
-                const morData: ProprietaireMorale = {
-                  ProprietaireID: proprietaireId,
-                  NomEntreprise: formData.NomEntreprise.trim(),
-                };
-                batch.set(newDetailsRef, morData);
+              
+              if (!detailsSnap.empty) {
+                existingDetailsDocId = detailsSnap.docs[0].id;
               }
             }
+          } else {
+            // Old proprietaire doesn't exist, create new
+            shouldCreateNew = true;
           }
+        } else {
+          // No old proprietaire, create new
+          shouldCreateNew = true;
         }
 
-        // Create new proprietaire only if no existing one
-        if (!proprietaireId) {
-          const newPropRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES).withConverter(proprietaireConverter));
+        // Create new proprietaire if needed
+        if (shouldCreateNew) {
+          proprietaireId = generateUUID();
+          const newPropRef = doc(db, COLLECTIONS.PROPRIETAIRES, proprietaireId).withConverter(proprietaireConverter);
           const newProp: Proprietaire = {
-            ProprietaireID: newPropRef.id,
+            ProprietaireID: proprietaireId,
             TypeProprietaire: formData.TypeProprietaire,
           };
           batch.set(newPropRef, newProp);
-          proprietaireId = newPropRef.id;
+        }
 
-          // Create details
-          if (formData.TypeProprietaire === 'Physique') {
-            const newDetailsRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES)).withConverter(proprietairePhysiqueConverter);
-            const physData: ProprietairePhysique = {
+        // Now update or create the details document
+        if (formData.TypeProprietaire === 'Physique') {
+          if (existingDetailsDocId) {
+            // Update existing Physique details using document ID
+            const detailsRef = doc(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES, existingDetailsDocId);
+            batch.update(detailsRef, {
               ProprietaireID: proprietaireId,
+              NomProprietaire: formData.NomProprietaire.trim(),
+              PrenomProprietaire: formData.PrenomProprietaire.trim(),
+            });
+          } else {
+            // Create new Physique details
+            const newDetailsRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES));
+            const physData: ProprietairePhysique = {
+              ProprietaireID: proprietaireId!,
               NomProprietaire: formData.NomProprietaire.trim(),
               PrenomProprietaire: formData.PrenomProprietaire.trim(),
             };
             batch.set(newDetailsRef, physData);
-          } else {
-            const newDetailsRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES)).withConverter(proprietaireMoraleConverter);
-            const morData: ProprietaireMorale = {
+          }
+        } else {
+          if (existingDetailsDocId) {
+            // Update existing Morale details using document ID
+            const detailsRef = doc(db, COLLECTIONS.PROPRIETAIRES_MORALES, existingDetailsDocId);
+            batch.update(detailsRef, {
               ProprietaireID: proprietaireId,
+              NomEntreprise: formData.NomEntreprise.trim(),
+            });
+          } else {
+            // Create new Morale details
+            const newDetailsRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES));
+            const morData: ProprietaireMorale = {
+              ProprietaireID: proprietaireId!,
               NomEntreprise: formData.NomEntreprise.trim(),
             };
             batch.set(newDetailsRef, morData);
@@ -297,6 +308,8 @@ export function useUpdateStation() {
        * 5. Update Station
        * ------------------------------ */
       const stationUpdateData: any = {
+        StationID: stationIdToUse, // Ensure StationID is always set
+        Code: currentStation?.Code, // Preserve the Code
         NomStation: formData.NomStation.trim(),
         Adresse: formData.Adresse.trim(),
         Latitude: formData.Latitude ? parseFloat(formData.Latitude) : 0,
@@ -312,6 +325,7 @@ export function useUpdateStation() {
         ProprietaireID: proprietaireId || '',
       };
 
+      console.log('Updating station with data:', stationUpdateData);
       batch.update(stationRef, stationUpdateData);
 
       /** -------------------------------
@@ -326,9 +340,10 @@ export function useUpdateStation() {
 
       for (const autoData of formData.autorisations) {
         if (autoData.NumeroAutorisation.trim()) {
-          const newRef = doc(collection(db, COLLECTIONS.AUTORISATIONS).withConverter(autorisationConverter));
+          const autoId = generateUUID();
+          const newRef = doc(db, COLLECTIONS.AUTORISATIONS, autoId).withConverter(autorisationConverter);
           const newAutorisation: Autorisation = {
-            AutorisationID: newRef.id,
+            AutorisationID: autoId,
             StationID: stationId,
             TypeAutorisation: autoData.TypeAutorisation,
             NumeroAutorisation: autoData.NumeroAutorisation.trim(),
@@ -373,7 +388,9 @@ export function useUpdateStation() {
       /** -------------------------------
        * Commit
        * ------------------------------ */
+      console.log('Committing batch for station update with ProprietaireID:', proprietaireId);
       await batch.commit();
+      console.log('Batch committed successfully');
 
     } catch (err: any) {
       console.error('Failed to update station:', err);

@@ -13,16 +13,28 @@ import {
   Analyse,
 } from "@/types/station";
 
+// Helper to generate UUID v4
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// Generic converter that stores ID as a field in the document
 export function createConverter<T extends { [key: string]: any }>(idField: string): FirestoreDataConverter<T> {
   return {
     toFirestore(model: T) {
-      const { [idField]: _, ...data } = model;
-      return data;
+      // Include the ID field in the stored document
+      return { ...model };
     },
     fromFirestore(snapshot: QueryDocumentSnapshot): T {
+      const data = snapshot.data();
+      // Read ID from the field, not from document ID
       return {
-        ...snapshot.data(),
-        [idField]: snapshot.id,
+        ...data,
+        [idField]: data[idField] || snapshot.id, // Fallback to document ID if field doesn't exist
       } as T;
     },
   };
@@ -30,6 +42,7 @@ export function createConverter<T extends { [key: string]: any }>(idField: strin
 
 export const proprietaireConverter: FirestoreDataConverter<Proprietaire> = {
   toFirestore(model: Proprietaire) {
+    // Store ProprietaireID as a field
     return {
       ProprietaireID: model.ProprietaireID,
       TypeProprietaire: model.TypeProprietaire,
@@ -38,7 +51,7 @@ export const proprietaireConverter: FirestoreDataConverter<Proprietaire> = {
   fromFirestore(snapshot: QueryDocumentSnapshot): Proprietaire {
     const data = snapshot.data();
     return {
-      ProprietaireID: snapshot.id,
+      ProprietaireID: data.ProprietaireID || snapshot.id,
       TypeProprietaire: data.TypeProprietaire,
     };
   },
@@ -46,6 +59,7 @@ export const proprietaireConverter: FirestoreDataConverter<Proprietaire> = {
 
 export const proprietairePhysiqueConverter: FirestoreDataConverter<ProprietairePhysique> = {
   toFirestore(model: ProprietairePhysique) {
+    // Store ProprietaireID as a field since it references the proprietaires collection
     return {
       ProprietaireID: model.ProprietaireID,
       NomProprietaire: model.NomProprietaire,
@@ -55,7 +69,7 @@ export const proprietairePhysiqueConverter: FirestoreDataConverter<ProprietaireP
   fromFirestore(snapshot: QueryDocumentSnapshot): ProprietairePhysique {
     const data = snapshot.data();
     return {
-      ProprietaireID: snapshot.id,
+      ProprietaireID: data.ProprietaireID, // Read from field, not document ID
       NomProprietaire: data.NomProprietaire,
       PrenomProprietaire: data.PrenomProprietaire,
     };
@@ -64,6 +78,7 @@ export const proprietairePhysiqueConverter: FirestoreDataConverter<ProprietaireP
 
 export const proprietaireMoraleConverter: FirestoreDataConverter<ProprietaireMorale> = {
   toFirestore(model: ProprietaireMorale) {
+    // Store ProprietaireID as a field since it references the proprietaires collection
     return {
       ProprietaireID: model.ProprietaireID,
       NomEntreprise: model.NomEntreprise,
@@ -72,13 +87,29 @@ export const proprietaireMoraleConverter: FirestoreDataConverter<ProprietaireMor
   fromFirestore(snapshot: QueryDocumentSnapshot): ProprietaireMorale {
     const data = snapshot.data();
     return {
-      ProprietaireID: snapshot.id,
+      ProprietaireID: data.ProprietaireID, // Read from field, not document ID
       NomEntreprise: data.NomEntreprise,
     };
   },
 };
 
-export const stationConverter = createConverter<Station>("StationID");
+// Special converter for Station that generates UUID if not provided
+export const stationConverter: FirestoreDataConverter<Station> = {
+  toFirestore(model: Station) {
+    return {
+      ...model,
+      StationID: model.StationID || generateUUID(),
+    };
+  },
+  fromFirestore(snapshot: QueryDocumentSnapshot): Station {
+    const data = snapshot.data();
+    return {
+      ...data,
+      StationID: data.StationID || snapshot.id,
+    } as Station;
+  },
+};
+
 export const marqueConverter = createConverter<Marque>("MarqueID");
 export const communeConverter = createConverter<Commune>("CommuneID");
 export const provinceConverter = createConverter<Province>("ProvinceID");
@@ -90,6 +121,7 @@ export const analyseConverter: FirestoreDataConverter<Analyse> = {
   toFirestore: (analyse: Analyse) => {
     return {
       ...analyse,
+      AnalyseID: analyse.AnalyseID,
       DateAnalyse: analyse.DateAnalyse instanceof Date ?
         Timestamp.fromDate(analyse.DateAnalyse) :
         analyse.DateAnalyse,
@@ -119,7 +151,7 @@ export const analyseConverter: FirestoreDataConverter<Analyse> = {
     
     return {
       ...data,
-      AnalyseID: snapshot.id,
+      AnalyseID: data.AnalyseID || snapshot.id,
       DateAnalyse: dateAnalyse,
     } as Analyse;
   },
