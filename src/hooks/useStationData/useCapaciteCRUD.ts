@@ -1,8 +1,8 @@
-// src/hooks/stationData/useCapaciteCRUD.ts
 import { useCallback, useState } from 'react';
-import { collection, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { CapaciteStockage } from '@/types/station';
+import { generateUUID } from '@/utils/uuid';
 
 const COLLECTIONS = {
   CAPACITES_STOCKAGE: 'capacites_stockage',
@@ -12,11 +12,16 @@ export function useCapaciteCRUD() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createCapacite = useCallback(async (data: Omit<CapaciteStockage, 'id'>) => {
+  const createCapacite = useCallback(async (data: Omit<CapaciteStockage, 'CapaciteID'>) => {
     setLoading(true);
     setError(null);
     try {
-      await addDoc(collection(db, COLLECTIONS.CAPACITES_STOCKAGE), data);
+      const capaciteId = generateUUID();
+      const payload: CapaciteStockage = {
+        CapaciteID: capaciteId,
+        ...data
+      };
+      await setDoc(doc(db, COLLECTIONS.CAPACITES_STOCKAGE, capaciteId), payload);
     } catch (err: any) {
       setError(`Failed to create capacite: ${err.message}`);
       throw err;
@@ -29,7 +34,9 @@ export function useCapaciteCRUD() {
     setLoading(true);
     setError(null);
     try {
-      await updateDoc(doc(db, COLLECTIONS.CAPACITES_STOCKAGE, id), data);
+      const payload = { ...data };
+      delete payload.CapaciteID; // Remove ID from update payload
+      await updateDoc(doc(db, COLLECTIONS.CAPACITES_STOCKAGE, id), payload);
     } catch (err: any) {
       setError(`Failed to update capacite: ${err.message}`);
       throw err;

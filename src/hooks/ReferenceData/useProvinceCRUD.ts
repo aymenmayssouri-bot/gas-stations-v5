@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
-import { collection, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Province } from '@/types/station';
+import { generateUUID } from '@/utils/uuid';
 
 const COLLECTIONS = {
   PROVINCES: 'provinces',
@@ -11,12 +12,16 @@ export function useProvinceCRUD() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createProvince = useCallback(async (data: Omit<Province, 'id' | 'ProvinceID'>) => {
+  const createProvince = useCallback(async (data: Omit<Province, 'ProvinceID'>) => {
     setLoading(true);
     setError(null);
     try {
-      // Add without ID; Firestore generates document ID, and ProvinceID can be set post-creation if needed
-      await addDoc(collection(db, COLLECTIONS.PROVINCES), { ProvinceID: '', ...data } as any); // Placeholder for ProvinceID if required
+      const provinceId = generateUUID();
+      const payload: Province = {
+        ProvinceID: provinceId,
+        ...data
+      };
+      await setDoc(doc(db, COLLECTIONS.PROVINCES, provinceId), payload);
     } catch (err: any) {
       setError(`Failed to create province: ${err.message}`);
       throw err;
@@ -29,7 +34,9 @@ export function useProvinceCRUD() {
     setLoading(true);
     setError(null);
     try {
-      await updateDoc(doc(db, COLLECTIONS.PROVINCES, id), data as any);
+      const payload = { ...data };
+      delete payload.ProvinceID; // Remove ID from update payload
+      await updateDoc(doc(db, COLLECTIONS.PROVINCES, id), payload);
     } catch (err: any) {
       setError(`Failed to update province: ${err.message}`);
       throw err;

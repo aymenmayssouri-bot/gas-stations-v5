@@ -16,6 +16,7 @@ npx tailwindcss init -p
 
 create a new station -- form:
 numero de mise en service --> should allow empty 
+if added a new autorisation, the type of the new one is different than the other
 
 propriétaire after update --> N/
 A

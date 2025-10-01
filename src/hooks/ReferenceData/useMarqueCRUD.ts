@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
-import { collection, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Marque } from '@/types/station';
+import { generateUUID } from '@/utils/uuid';
 
 const COLLECTIONS = {
   MARQUES: 'marques',
@@ -11,11 +12,16 @@ export function useMarqueCRUD() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createMarque = useCallback(async (data: Omit<Marque, 'id' | 'MarqueID'>) => {
+  const createMarque = useCallback(async (data: Omit<Marque, 'MarqueID'>) => {
     setLoading(true);
     setError(null);
     try {
-      await addDoc(collection(db, COLLECTIONS.MARQUES), { MarqueID: '', ...data } as any);
+      const marqueId = generateUUID();
+      const payload: Marque = {
+        MarqueID: marqueId,
+        ...data
+      };
+      await setDoc(doc(db, COLLECTIONS.MARQUES, marqueId), payload);
     } catch (err: any) {
       setError(`Failed to create marque: ${err.message}`);
       throw err;
@@ -28,7 +34,9 @@ export function useMarqueCRUD() {
     setLoading(true);
     setError(null);
     try {
-      await updateDoc(doc(db, COLLECTIONS.MARQUES, id), data as any);
+      const payload = { ...data };
+      delete payload.MarqueID; // Remove ID from update payload
+      await updateDoc(doc(db, COLLECTIONS.MARQUES, id), payload);
     } catch (err: any) {
       setError(`Failed to update marque: ${err.message}`);
       throw err;

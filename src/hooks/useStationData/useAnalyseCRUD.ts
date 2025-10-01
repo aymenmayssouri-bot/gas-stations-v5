@@ -1,14 +1,14 @@
-// src/hooks/useStationData/useAnalyseCRUD.ts
 'use client';
 
 import { useCallback, useState } from 'react';
 import {
-  collection, doc, addDoc, updateDoc, deleteDoc,
+  collection, doc, setDoc, updateDoc, deleteDoc,
   query, where, getDocs, Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { COLLECTIONS } from '@/lib/firebase/collections';
 import { Analyse } from '@/types/station';
+import { generateUUID } from '@/utils/uuid';
 
 // Add interface for Timestamp-like object
 interface TimestampLike {
@@ -24,15 +24,16 @@ export function useAnalyseCRUD() {
     setLoading(true); 
     setError(null);
     try {
-      const payload = {
+      const analyseId = generateUUID();
+      const fsPayload = {
         StationID: data.StationID,
         ProduitAnalyse: data.ProduitAnalyse,
         CodeAnalyse: data.CodeAnalyse,
         ResultatAnalyse: data.ResultatAnalyse,
         DateAnalyse: data.DateAnalyse ? Timestamp.fromDate(data.DateAnalyse) : null,
       };
-      const ref = await addDoc(collection(db, COLLECTIONS.ANALYSES), payload);
-      return ref.id;
+      await setDoc(doc(db, COLLECTIONS.ANALYSES, analyseId), fsPayload);
+      return analyseId;
     } catch (err: any) {
       setError(`Failed to create analyse: ${err.message}`); 
       throw err;
@@ -96,12 +97,13 @@ export function useAnalyseCRUD() {
     setLoading(true); 
     setError(null);
     try {
-      const payload: any = { ...data };
+      const fsPayload: any = { ...data };
       if (data.DateAnalyse instanceof Date) {
-        payload.DateAnalyse = Timestamp.fromDate(data.DateAnalyse);
+        fsPayload.DateAnalyse = Timestamp.fromDate(data.DateAnalyse);
+      } else if (data.DateAnalyse === null) {
+        fsPayload.DateAnalyse = null;
       }
-      delete payload.AnalyseID; // Remove ID from update payload
-      await updateDoc(doc(db, COLLECTIONS.ANALYSES, analyseId), payload);
+      await updateDoc(doc(db, COLLECTIONS.ANALYSES, analyseId), fsPayload);
     } catch (err: any) {
       setError(`Failed to update analyse: ${err.message}`); 
       throw err;

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { collection, doc, addDoc, updateDoc, deleteDoc, getDocs } from "firebase/firestore";
+import { collection, doc, setDoc, updateDoc, deleteDoc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { Autorisation } from "@/types/station";
 import { autorisationConverter } from "@/lib/firebase/converters";
+import { generateUUID } from '@/utils/uuid';
 
 const COLLECTION = "autorisations";
 
@@ -34,7 +35,15 @@ export function useAutorisationCRUD() {
     async (data: Omit<Autorisation, "AutorisationID">) => {
       setLoading(true);
       try {
-        await addDoc(collection(db, COLLECTION).withConverter(autorisationConverter), data);
+        const autorisationId = generateUUID();
+        const payload: Autorisation = {
+          AutorisationID: autorisationId,
+          ...data
+        };
+        await setDoc(
+          doc(db, COLLECTION, autorisationId).withConverter(autorisationConverter),
+          payload
+        );
         await fetchAutorisations();
       } catch (err: any) {
         setError(`Failed to create autorisation: ${err.message}`);
@@ -50,7 +59,12 @@ export function useAutorisationCRUD() {
     async (id: string, data: Partial<Autorisation>) => {
       setLoading(true);
       try {
-        await updateDoc(doc(db, COLLECTION, id).withConverter(autorisationConverter), data);
+        const payload = { ...data };
+        delete payload.AutorisationID; // Remove ID from update payload
+        await updateDoc(
+          doc(db, COLLECTION, id).withConverter(autorisationConverter),
+          payload
+        );
         await fetchAutorisations();
       } catch (err: any) {
         setError(`Failed to update autorisation: ${err.message}`);

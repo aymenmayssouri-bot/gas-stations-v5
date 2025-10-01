@@ -2,12 +2,13 @@ import { useCallback, useState } from 'react';
 import {
   collection,
   doc,
-  addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Commune } from '@/types/station';
+import { generateUUID } from '@/utils/uuid';
 
 const COLLECTIONS = {
   COMMUNES: 'communes',
@@ -17,11 +18,16 @@ export function useCommuneCRUD() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createCommune = useCallback(async (data: Omit<Commune, 'id' | 'CommuneID'>) => {
+  const createCommune = useCallback(async (data: Omit<Commune, 'CommuneID'>) => {
     setLoading(true);
     setError(null);
     try {
-      await addDoc(collection(db, COLLECTIONS.COMMUNES), { CommuneID: '', ...data } as any);
+      const communeId = generateUUID();
+      const payload: Commune = {
+        CommuneID: communeId,
+        ...data
+      };
+      await setDoc(doc(db, COLLECTIONS.COMMUNES, communeId), payload);
     } catch (err: any) {
       setError(`Failed to create commune: ${err.message}`);
       throw err;
@@ -34,7 +40,9 @@ export function useCommuneCRUD() {
     setLoading(true);
     setError(null);
     try {
-      await updateDoc(doc(db, COLLECTIONS.COMMUNES, id), data as any);
+      const payload = { ...data };
+      delete payload.CommuneID; // Remove ID from update payload
+      await updateDoc(doc(db, COLLECTIONS.COMMUNES, id), payload);
     } catch (err: any) {
       setError(`Failed to update commune: ${err.message}`);
       throw err;

@@ -1,9 +1,8 @@
-// src/hooks/referenceData/useProprietaireCRUD.ts
 import { useCallback, useState } from 'react';
 import {
   collection,
   doc,
-  addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   writeBatch,
@@ -17,6 +16,7 @@ import {
   ProprietairePhysique,
   ProprietaireMorale,
 } from '@/types/station';
+import { generateUUID } from '@/utils/uuid';
 
 const COLLECTIONS = {
   PROPRIETAIRES: 'proprietaires',
@@ -31,29 +31,35 @@ export function useProprietaireCRUD() {
   const createProprietaire = useCallback(async (data: {
     TypeProprietaire: 'Physique' | 'Morale';
     NomProprietaire?: string;
+    PrenomProprietaire?: string;
     NomEntreprise?: string;
   }) => {
     setLoading(true);
     setError(null);
     const batch = writeBatch(db);
     try {
-      const proprietaireRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES));
-      const proprietaire: Omit<Proprietaire, 'id'> = {
+      const proprietaireId = generateUUID();
+      const proprietaireRef = doc(db, COLLECTIONS.PROPRIETAIRES, proprietaireId);
+      const proprietaire: Proprietaire = {
+        ProprietaireID: proprietaireId,
         TypeProprietaire: data.TypeProprietaire,
       };
       batch.set(proprietaireRef, proprietaire);
 
-      if (data.TypeProprietaire === 'Physique' && data.NomProprietaire) {
-        const physiqueRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES));
-        const physique: Omit<ProprietairePhysique, 'id'> = {
-          ProprietaireID: proprietaireRef.id,
+      if (data.TypeProprietaire === 'Physique' && data.NomProprietaire && data.PrenomProprietaire) {
+        const physiqueId = generateUUID();
+        const physiqueRef = doc(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES, physiqueId);
+        const physique: ProprietairePhysique = {
+          ProprietaireID: proprietaireId,
           NomProprietaire: data.NomProprietaire,
+          PrenomProprietaire: data.PrenomProprietaire,
         };
         batch.set(physiqueRef, physique);
       } else if (data.TypeProprietaire === 'Morale' && data.NomEntreprise) {
-        const moraleRef = doc(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES));
-        const morale: Omit<ProprietaireMorale, 'id'> = {
-          ProprietaireID: proprietaireRef.id,
+        const moraleId = generateUUID();
+        const moraleRef = doc(db, COLLECTIONS.PROPRIETAIRES_MORALES, moraleId);
+        const morale: ProprietaireMorale = {
+          ProprietaireID: proprietaireId,
           NomEntreprise: data.NomEntreprise,
         };
         batch.set(moraleRef, morale);
@@ -73,6 +79,7 @@ export function useProprietaireCRUD() {
     data: {
       TypeProprietaire: 'Physique' | 'Morale';
       NomProprietaire?: string;
+      PrenomProprietaire?: string;
       NomEntreprise?: string;
     },
   ) => {
@@ -84,12 +91,24 @@ export function useProprietaireCRUD() {
       const proprietaireData = { TypeProprietaire: data.TypeProprietaire };
       batch.update(proprietaireRef, proprietaireData);
 
-      if (data.TypeProprietaire === 'Physique' && data.NomProprietaire) {
+      if (data.TypeProprietaire === 'Physique' && data.NomProprietaire && data.PrenomProprietaire) {
         const physiqueSnapshot = await getDocs(
           query(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES), where('ProprietaireID', '==', id)),
         );
         if (!physiqueSnapshot.empty) {
-          batch.update(physiqueSnapshot.docs[0].ref, { NomProprietaire: data.NomProprietaire });
+          batch.update(physiqueSnapshot.docs[0].ref, { 
+            NomProprietaire: data.NomProprietaire,
+            PrenomProprietaire: data.PrenomProprietaire
+          });
+        } else {
+          const physiqueId = generateUUID();
+          const physiqueRef = doc(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES, physiqueId);
+          const physique: ProprietairePhysique = {
+            ProprietaireID: id,
+            NomProprietaire: data.NomProprietaire,
+            PrenomProprietaire: data.PrenomProprietaire,
+          };
+          batch.set(physiqueRef, physique);
         }
       } else if (data.TypeProprietaire === 'Morale' && data.NomEntreprise) {
         const moraleSnapshot = await getDocs(
@@ -97,6 +116,14 @@ export function useProprietaireCRUD() {
         );
         if (!moraleSnapshot.empty) {
           batch.update(moraleSnapshot.docs[0].ref, { NomEntreprise: data.NomEntreprise });
+        } else {
+          const moraleId = generateUUID();
+          const moraleRef = doc(db, COLLECTIONS.PROPRIETAIRES_MORALES, moraleId);
+          const morale: ProprietaireMorale = {
+            ProprietaireID: id,
+            NomEntreprise: data.NomEntreprise,
+          };
+          batch.set(moraleRef, morale);
         }
       }
 
