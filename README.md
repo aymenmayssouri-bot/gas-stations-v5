@@ -14,14 +14,6 @@ npx tailwindcss init -p
 # to do list 
 
 
-create a new station -- form:
-numero de mise en service --> should allow empty 
-if added a new autorisation, the type of the new one is different than the other
-
-propriétaire after update --> N/
-A
-
-
 1-overview of code and files (security, delete, optimize)
 
 
@@ -36,6 +28,7 @@ A
 6- Search bar (doesn't delete text serched)
 
 
-6 station form : --> overview form fields validations and style
+6 station form :  date format
 
+7- Add proprietaire and gerant CRUD in admin
 

@@ -244,6 +244,7 @@ export default function StationDetailPage() {
           mode={editingStation ? 'edit' : 'create'}
           station={editingStation}
           onSaved={handleStationFormSaved}
+          onCancel={() => setShowStationForm(false)}
         />
       </Modal>
 

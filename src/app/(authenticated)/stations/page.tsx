@@ -475,6 +475,10 @@ export default function StationsPage() {
           mode={editingStation ? "edit" : "create"}
           station={editingStation}
           onSaved={handleFormSaved}
+          onCancel={() => {
+            setShowForm(false);
+            setEditingStation(undefined);
+          }}
         />
       </Modal>
 

@@ -9,7 +9,7 @@ export function validateStationData(data: StationFormData): {
 } {
   const errors: NormalizedFormErrors = {};
 
-  // CHANGE: Updated required fields to include NomGerant, PrenomGerant instead of Gerant
+  // Required fields for general information
   const required: (keyof StationFormData)[] = [
     'NomStation',
     'Adresse',
@@ -46,60 +46,42 @@ export function validateStationData(data: StationFormData): {
     errors.Longitude = 'Longitude invalide (entre -180 et 180)';
   }
 
-  // Validate capacities if provided
-  if (data.CapaciteGasoil.trim()) {
-    const gasoil = toNumber(data.CapaciteGasoil);
-    if (gasoil === null || gasoil < 0) {
-      errors.CapaciteGasoil = 'Capacité Gasoil invalide';
-    }
-  }
-
-  if (data.CapaciteSSP.trim()) {
-    const ssp = toNumber(data.CapaciteSSP);
-    if (ssp === null || ssp < 0) {
-      errors.CapaciteSSP = 'Capacité SSP invalide';
-    }
-  }
-
-  // CHANGE: Validate TypeProprietaire
+  // Validate TypeProprietaire
   if (!['Physique', 'Morale'].includes(data.TypeProprietaire)) {
-    errors.TypeProprietaire = 'Type de propriétaire doit être Physique ou Morale';
+    errors.TypeProprietaire = 'Champ obligatoire';
   }
 
-  // CHANGE: Enhanced proprietaire validation
-  const proprietaireName = data.TypeProprietaire === 'Physique' ? data.NomProprietaire.trim() : data.NomEntreprise.trim();
-  if (proprietaireName) {
-    // Owner provided, validate all fields
-    if (data.TypeProprietaire === 'Physique') {
-      if (!data.NomProprietaire.trim()) {
-        errors.NomProprietaire = 'Nom du propriétaire requis pour type physique';
-      }
-      if (!data.PrenomProprietaire.trim()) {
-        errors.PrenomProprietaire = 'Prénom du propriétaire requis pour type physique';
-      }
-    } else {
-      if (!data.NomEntreprise.trim()) {
-        errors.NomEntreprise = 'Nom de l\'entreprise requis pour type morale';
-      }
+  // Validate proprietaire fields - REQUIRED
+  if (data.TypeProprietaire === 'Physique') {
+    if (!data.NomProprietaire.trim()) {
+      errors.NomProprietaire = 'Champ obligatoire';
     }
+    if (!data.PrenomProprietaire.trim()) {
+      errors.PrenomProprietaire = 'Champ obligatoire';
+    }
+  } else if (data.TypeProprietaire === 'Morale') {
+    if (!data.NomEntreprise.trim()) {
+      errors.NomEntreprise = 'Champ obligatoire';
+    }
+  }
+
+  // Validate autorisations - AT LEAST ONE REQUIRED
+  if (!data.autorisations || data.autorisations.length === 0) {
+    errors.autorisations = 'Au moins une autorisation est requise';
   } else {
-    // No owner provided, check for partial data
-    if (data.TypeProprietaire === 'Physique' && data.PrenomProprietaire.trim()) {
-      errors.NomProprietaire = 'Nom du propriétaire requis si le prénom est fourni';
+    const hasValidAutorisation = data.autorisations.some(
+      auto => auto.NumeroAutorisation.trim() && auto.TypeAutorisation
+    );
+    
+    if (!hasValidAutorisation) {
+      errors.autorisations = 'Champ obligatoire - Au moins une autorisation complète est requise';
     }
-    if (data.TypeProprietaire === 'Morale' && data.NomEntreprise.trim()) {
-      errors.NomEntreprise = 'Nom de l\'entreprise requis pour type morale';
-    }
-  }
 
-  // CHANGE: Validate autorisations array
-  if (data.autorisations && data.autorisations.length > 0) {
+    // Validate each autorisation
     data.autorisations.forEach((auto, index) => {
-      if (auto.NumeroAutorisation.trim() && !auto.TypeAutorisation) {
-        errors.autorisations = `Type d'autorisation requis pour l'autorisation ${index + 1}`;
-      }
-      if (auto.TypeAutorisation && !auto.NumeroAutorisation.trim()) {
-        errors.autorisations = `Numéro d'autorisation requis pour l'autorisation ${index + 1}`;
+      if (!auto.DateAutorisation || auto.DateAutorisation === 'YYYY-MM-DD') {
+        // This is the new required field error
+        errors.autorisations = `Champ obligatoire - Date d'autorisation requise pour l'autorisation ${index + 1}`;
       }
       if (auto.DateAutorisation && !/^\d{4}-\d{2}-\d{2}$/.test(auto.DateAutorisation)) {
         errors.autorisations = `Format de date invalide pour l'autorisation ${index + 1} (YYYY-MM-DD)`;
@@ -107,12 +89,13 @@ export function validateStationData(data: StationFormData): {
     });
   }
 
-  // CHANGE: Validate Telephone format (basic example, adjust as needed)
+
+  // Validate Telephone format (basic example, adjust as needed)
   if (data.Telephone.trim() && !/^\+?\d{9,15}$/.test(data.Telephone.trim())) {
     errors.Telephone = 'Numéro de téléphone invalide (9 à 15 chiffres, + facultatif)';
   }
 
-  // CHANGE: Set general submit error if validation fails
+  // Set general submit error if validation fails
   if (Object.keys(errors).length > 0) {
     errors.submit = 'Veuillez corriger les erreurs dans le formulaire avant de soumettre.';
   }

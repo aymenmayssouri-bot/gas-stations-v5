@@ -1,7 +1,8 @@
-// src/hooks/ReferenceData/useGerants.ts
-import { useEffect, useState } from 'react';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+'use client';
+
+import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/config';
+import { collection, query, onSnapshot, FirestoreError } from 'firebase/firestore';
 import { Gerant } from '@/types/station';
 
 const COLLECTIONS = {
@@ -11,26 +12,36 @@ const COLLECTIONS = {
 export function useGerants() {
   const [gerants, setGerants] = useState<Gerant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchGerants = async () => {
-      try {
-        const snapshot = await getDocs(
-          query(collection(db, COLLECTIONS.GERANTS), orderBy('Gerant'))
-        );
-        const gerantList = snapshot.docs.map(doc => 
-          ({ id: doc.id, ...doc.data() } as Gerant)
-        );
-        setGerants(gerantList);
-      } catch (error) {
-        console.error('Error fetching gerants:', error);
-      } finally {
+    const q = query(collection(db, COLLECTIONS.GERANTS));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const gerantData = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            GerantID: doc.id,
+            CINGerant: data.CINGerant || '',
+            PrenomGerant: data.PrenomGerant || '',
+            NomGerant: data.NomGerant || '',
+            Telephone: data.Telephone || '',
+          } as Gerant;
+        });
+        setGerants(gerantData);
+        setLoading(false);
+        setError(null);
+      },
+      (err: FirestoreError) => {
+        console.error('Error fetching gerants:', err.message);
+        setError(err.message);
         setLoading(false);
       }
-    };
+    );
 
-    fetchGerants();
+    return () => unsubscribe();
   }, []);
 
-  return { gerants, loading };
+  return { gerants, loading, error };
 }
