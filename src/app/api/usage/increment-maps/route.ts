@@ -1,4 +1,4 @@
-// src/app/api/distance-matrix/route.ts
+// src/app/api/usage/increment-maps/route.ts
 import { NextResponse } from 'next/server';
 
 // --- CONFIGURATION ---
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
       return NextResponse.json(cachedEntry.data);
     }
 
-    // Make API request (quota checking happens in the hook before calling this)
+    // Make API request
     const mode = searchParams.get('mode') || 'driving';
     const units = searchParams.get('units') || 'metric';
     const language = searchParams.get('language') || 'fr';
@@ -63,14 +63,6 @@ export async function GET(request: Request) {
 
     if (!response.ok) {
       console.error('API HTTP Error:', response.status, response.statusText, data);
-      
-      if (response.status === 429) {
-        return NextResponse.json(
-          { error: 'Rate limit exceeded. Please try again later.' },
-          { status: 429 }
-        );
-      }
-      
       return NextResponse.json(
         { error: `HTTP Error: ${response.status} - ${data.error_message || 'Unknown error'}` },
         { status: response.status }
@@ -81,8 +73,6 @@ export async function GET(request: Request) {
     if (data.status === 'OK') {
       console.log('Storing in cache:', cacheKey);
       cache.set(cacheKey, { data, timestamp: Date.now() });
-    } else {
-      console.error('API Error:', data.error_message, data.status);
     }
 
     return NextResponse.json(data);

@@ -4,6 +4,8 @@ import { GoogleMap, useLoadScript, MarkerF, InfoWindow } from '@react-google-map
 import Link from 'next/link';
 import { StationWithDetails } from '@/types/station';
 import { getProprietaireName } from '@/utils/format';
+import { useApiUsage } from '@/hooks/useApiUsage';
+import { incrementApiUsage } from '@/lib/firebase/apiUsage';
 
 interface MapPreviewProps {
   stations: StationWithDetails[];
@@ -15,7 +17,6 @@ function safeFullName(first?: string, last?: string) {
   return `${first || ''} ${last || ''}`.trim() || 'N/A';
 }
 
-// Map styles configuration
 const mapStyles = [
   {
     elementType: "geometry",
@@ -38,7 +39,6 @@ const mapStyles = [
   }
 ];
 
-// Palette of 30 distinct colors for markers
 const colorPalette = [
   '#ff0000', '#ff3200', '#ff6600', '#ff9900', '#ffcc00',
   '#ffff00', '#cbff00', '#99ff00', '#65ff00', '#33ff00',
@@ -48,19 +48,17 @@ const colorPalette = [
   '#ff00ff', '#ff00cb', '#ff0098', '#ff0066', '#ff0033'
 ];
 
-// Generate consistent color based on marque using hash
 function getColorForMarque(marque: string): string {
   let hash = 0;
   for (let i = 0; i < marque.length; i++) {
     const char = marque.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash |= 0; // Convert to 32bit integer
+    hash |= 0;
   }
   const index = Math.abs(hash) % colorPalette.length;
   return colorPalette[index];
 }
 
-// Create custom marker icon with Google Maps pin shape
 function getMarkerIcon(marque: string): google.maps.Symbol {
   const color = getColorForMarque(marque);
   return {
@@ -74,9 +72,17 @@ function getMarkerIcon(marque: string): google.maps.Symbol {
 }
 
 export default function MapPreview({ stations }: MapPreviewProps) {
+  const { usage } = useApiUsage();
+  const [mapUsed, setMapUsed] = useState(false);
+  
+  // Check if we can use the Maps API
+  const canUseMap = usage ? !usage.maps.exceeded : true;
+  
+  // Don't load the script if we can't use the map
   const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+    googleMapsApiKey: canUseMap ? (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '') : '',
   });
+  
   const [selected, setSelected] = useState<StationWithDetails | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
 
@@ -103,7 +109,17 @@ export default function MapPreview({ stations }: MapPreviewProps) {
 
   const onLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
-  }, []);
+    
+    // Increment usage counter when map loads (only once per component mount)
+    if (!mapUsed) {
+      incrementApiUsage('maps_js_api')
+        .then(() => {
+          setMapUsed(true);
+          console.log('Maps API usage incremented');
+        })
+        .catch(err => console.error('Failed to increment maps usage:', err));
+    }
+  }, [mapUsed]);
 
   useEffect(() => {
     if (!mapRef.current || !window.google) return;
@@ -131,7 +147,23 @@ export default function MapPreview({ stations }: MapPreviewProps) {
     }
   }, [stations, center]);
 
-  if (!isLoaded) return <div>Loading Map...</div>;
+  // If quota is exceeded, show message
+  if (!canUseMap) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-100 rounded-lg">
+        <div className="text-center p-6">
+          <p className="text-red-600 font-semibold mb-2">Quota Maps API dépassé</p>
+          <p className="text-sm text-gray-600">
+            La limite quotidienne de la Maps API a été atteinte.
+            <br />
+            Réinitialisation à minuit.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isLoaded) return <div>Chargement de la carte...</div>;
 
   return (
     <GoogleMap
