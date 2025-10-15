@@ -1,3 +1,5 @@
+// Revised src/hooks/ReferenceData/useProprietaireCRUD.ts
+
 import { useCallback, useState } from 'react';
 import {
   collection,
@@ -9,6 +11,8 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import {
@@ -44,7 +48,7 @@ export function useProprietaireCRUD() {
         ProprietaireID: proprietaireId,
         TypeProprietaire: data.TypeProprietaire,
       };
-      batch.set(proprietaireRef, proprietaire);
+      batch.set(proprietaireRef, { ...proprietaire, updatedAt: serverTimestamp() });
 
       if (data.TypeProprietaire === 'Physique' && data.NomProprietaire && data.PrenomProprietaire) {
         const physiqueId = generateUUID();
@@ -88,8 +92,25 @@ export function useProprietaireCRUD() {
     const batch = writeBatch(db);
     try {
       const proprietaireRef = doc(db, COLLECTIONS.PROPRIETAIRES, id);
-      const proprietaireData = { TypeProprietaire: data.TypeProprietaire };
-      batch.update(proprietaireRef, proprietaireData);
+      const proprietaireSnap = await getDoc(proprietaireRef);
+      const oldType = proprietaireSnap.data()?.TypeProprietaire;
+
+      batch.update(proprietaireRef, { TypeProprietaire: data.TypeProprietaire, updatedAt: serverTimestamp() });
+
+      // Delete old details if type changed
+      if (oldType && oldType !== data.TypeProprietaire) {
+        if (oldType === 'Physique') {
+          const physiqueSnapshot = await getDocs(
+            query(collection(db, COLLECTIONS.PROPRIETAIRES_PHYSIQUES), where('ProprietaireID', '==', id)),
+          );
+          physiqueSnapshot.docs.forEach(d => batch.delete(d.ref));
+        } else if (oldType === 'Morale') {
+          const moraleSnapshot = await getDocs(
+            query(collection(db, COLLECTIONS.PROPRIETAIRES_MORALES), where('ProprietaireID', '==', id)),
+          );
+          moraleSnapshot.docs.forEach(d => batch.delete(d.ref));
+        }
+      }
 
       if (data.TypeProprietaire === 'Physique' && data.NomProprietaire && data.PrenomProprietaire) {
         const physiqueSnapshot = await getDocs(

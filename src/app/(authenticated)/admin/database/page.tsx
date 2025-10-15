@@ -8,7 +8,11 @@ import { useMarques } from '@/hooks/ReferenceData/useMarques';
 import { useProvinceCRUD } from '@/hooks/ReferenceData/useProvinceCRUD';
 import { useCommuneCRUD } from '@/hooks/ReferenceData/useCommuneCRUD';
 import { useMarqueCRUD } from '@/hooks/ReferenceData/useMarqueCRUD';
-import { Province, Commune, Marque } from '@/types/station';
+import { useGerants } from '@/hooks/ReferenceData/useGerants';
+import { useGerantCRUD } from '@/hooks/ReferenceData/useGerantCRUD';
+import { useProprietaires } from '@/hooks/ReferenceData/useProprietaires';
+import { useProprietaireCRUD } from '@/hooks/ReferenceData/useProprietaireCRUD';
+import { Province, Commune, Marque, Gerant, Proprietaire, ProprietairePhysique, ProprietaireMorale } from '@/types/station';
 import {
   Tabs,
   TabsContent,
@@ -451,6 +455,418 @@ const MarquesPanel = () => {
   );
 };
 
+const GerantsPanel = () => {
+  const { gerants, loading: fetchLoading, error: fetchError } = useGerants();
+  const { createGerant, updateGerant, deleteGerant, loading: crudLoading, error } = useGerantCRUD();
+  const [open, setOpen] = useState(false);
+  const [editingGerant, setEditingGerant] = useState<Gerant | null>(null);
+  const [formData, setFormData] = useState({
+    CINGerant: '',
+    NomGerant: '',
+    PrenomGerant: '',
+    Telephone: ''
+  });
+
+  const handleOpen = (gerant: Gerant | null = null) => {
+    setEditingGerant(gerant);
+    setFormData({
+      CINGerant: gerant?.CINGerant || '',
+      NomGerant: gerant?.NomGerant || '',
+      PrenomGerant: gerant?.PrenomGerant || '',
+      Telephone: gerant?.Telephone || ''
+    });
+    setOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.CINGerant.trim() || !formData.NomGerant.trim() || !formData.PrenomGerant.trim()) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+    try {
+      if (editingGerant) {
+        await updateGerant(editingGerant.GerantID, formData);
+      } else {
+        await createGerant(formData);
+      }
+      setOpen(false);
+      setFormData({
+        CINGerant: '',
+        NomGerant: '',
+        PrenomGerant: '',
+        Telephone: ''
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteGerant(id);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (fetchLoading) return <p>Loading gérants...</p>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold">Gérants</h2>
+        <Button variant="default" onClick={() => handleOpen()}>Create New Gérant</Button>
+      </div>
+      {(error || fetchError) && <p className="text-red-500">{error || fetchError}</p>}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>CIN</TableHead>
+            <TableHead>Nom</TableHead>
+            <TableHead>Prénom</TableHead>
+            <TableHead>Téléphone</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {gerants.map((g) => (
+            <TableRow key={g.GerantID}>
+              <TableCell>{g.CINGerant}</TableCell>
+              <TableCell>{g.NomGerant}</TableCell>
+              <TableCell>{g.PrenomGerant}</TableCell>
+              <TableCell>{g.Telephone}</TableCell>
+              <TableCell className="flex space-x-2">
+                <Button variant="outline" onClick={() => handleOpen(g)}>Edit</Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">Delete</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+                    </AlertDialogHeader>
+                    <AlertDialogDescription>
+                      This action cannot be undone. Are you sure you want to delete this gérant?
+                    </AlertDialogDescription>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(g.GerantID)}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingGerant ? 'Edit Gérant' : 'Create Gérant'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="cinGerant">CIN</Label>
+              <Input
+                id="cinGerant"
+                value={formData.CINGerant}
+                onChange={(e) => setFormData(prev => ({ ...prev, CINGerant: e.target.value }))}
+                placeholder="Enter CIN"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="nomGerant">Nom</Label>
+              <Input
+                id="nomGerant"
+                value={formData.NomGerant}
+                onChange={(e) => setFormData(prev => ({ ...prev, NomGerant: e.target.value }))}
+                placeholder="Enter nom"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="prenomGerant">Prénom</Label>
+              <Input
+                id="prenomGerant"
+                value={formData.PrenomGerant}
+                onChange={(e) => setFormData(prev => ({ ...prev, PrenomGerant: e.target.value }))}
+                placeholder="Enter prénom"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="telephone">Téléphone</Label>
+              <Input
+                id="telephone"
+                value={formData.Telephone}
+                onChange={(e) => setFormData(prev => ({ ...prev, Telephone: e.target.value }))}
+                placeholder="Enter téléphone"
+              />
+            </div>
+            <Button type="submit" disabled={crudLoading}>
+              {crudLoading ? 'Saving...' : 'Save'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+// Revised ProprietairesPanel component in src/app/(authenticated)/admin/database/page.tsx
+
+const ProprietairesPanel = () => {
+  const { proprietaires, loading: fetchLoading, error: fetchError } = useProprietaires();
+  const { createProprietaire, updateProprietaire, deleteProprietaire, loading: crudLoading, error } = useProprietaireCRUD();
+  const [open, setOpen] = useState(false);
+  const [editingProprietaire, setEditingProprietaire] = useState<(Proprietaire & { details: ProprietairePhysique | ProprietaireMorale | null }) | null>(null);
+  
+  // State for filtering
+  const [selectedType, setSelectedType] = useState<'all' | 'Physique' | 'Morale'>('all');
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    type: 'Physique' as 'Physique' | 'Morale',
+    nomProprietaire: '',
+    prenomProprietaire: '',
+    nomEntreprise: '',
+  });
+
+  // Filter proprietaires based on selected type
+  const filteredProprietaires = useMemo(() => {
+    if (selectedType === 'all') return proprietaires;
+    return proprietaires.filter(p => p.TypeProprietaire === selectedType);
+  }, [proprietaires, selectedType]);
+
+  const handleTypeChange = (newType: 'Physique' | 'Morale') => {
+    const currentFormData = { ...formData };
+    
+    if (newType === 'Morale' && formData.type === 'Physique') {
+      // Convert physical person name to company name
+      const fullName = `${currentFormData.prenomProprietaire} ${currentFormData.nomProprietaire}`.trim();
+      setFormData({
+        ...currentFormData,
+        type: newType,
+        nomEntreprise: fullName,
+        nomProprietaire: '',
+        prenomProprietaire: ''
+      });
+    } else if (newType === 'Physique' && formData.type === 'Morale') {
+      // Use company name as last name
+      setFormData({
+        ...currentFormData,
+        type: newType,
+        nomProprietaire: currentFormData.nomEntreprise,
+        prenomProprietaire: '',
+        nomEntreprise: ''
+      });
+    }
+  };
+
+  const handleOpen = (proprietaire: (Proprietaire & { details: ProprietairePhysique | ProprietaireMorale | null }) | null = null) => {
+    setEditingProprietaire(proprietaire);
+    if (proprietaire) {
+      if (proprietaire.TypeProprietaire === 'Physique') {
+        const details = proprietaire.details as ProprietairePhysique;
+        setFormData({
+          type: 'Physique',
+          nomProprietaire: details?.NomProprietaire || '',
+          prenomProprietaire: details?.PrenomProprietaire || '',
+          nomEntreprise: ''
+        });
+      } else {
+        const details = proprietaire.details as ProprietaireMorale;
+        setFormData({
+          type: 'Morale',
+          nomEntreprise: details?.NomEntreprise || '',
+          nomProprietaire: '',
+          prenomProprietaire: ''
+        });
+      }
+    } else {
+      setFormData({
+        type: 'Physique',
+        nomProprietaire: '',
+        prenomProprietaire: '',
+        nomEntreprise: ''
+      });
+    }
+    setOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        TypeProprietaire: formData.type,
+        ...(formData.type === 'Physique' 
+          ? {
+              NomProprietaire: formData.nomProprietaire,
+              PrenomProprietaire: formData.prenomProprietaire,
+            }
+          : {
+              NomEntreprise: formData.nomEntreprise,
+            })
+      };
+
+      if (editingProprietaire) {
+        await updateProprietaire(editingProprietaire.ProprietaireID, payload);
+      } else {
+        await createProprietaire(payload);
+      }
+      setOpen(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteProprietaire(id);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (fetchLoading) return <p>Loading propriétaires...</p>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Label>Type:</Label>
+          <Select 
+            value={selectedType} 
+            onValueChange={(value: 'all' | 'Physique' | 'Morale') => setSelectedType(value)}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue>
+                {selectedType === 'all' ? 'Tous les propriétaires' : 
+                 selectedType === 'Physique' ? 'Personnes Physiques' : 'Personnes Morales'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les propriétaires</SelectItem>
+              <SelectItem value="Physique">Personnes Physiques</SelectItem>
+              <SelectItem value="Morale">Personnes Morales</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button variant="default" onClick={() => handleOpen()}>Nouveau Propriétaire</Button>
+      </div>
+      {error && <p className="text-red-500">{error}</p>}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Type</TableHead>
+            <TableHead>Nom</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredProprietaires.map((p) => (
+            <TableRow key={p.ProprietaireID}>
+              <TableCell>{p.TypeProprietaire}</TableCell>
+              <TableCell>
+                {p.TypeProprietaire === 'Physique' 
+                  ? `${(p.details as ProprietairePhysique)?.PrenomProprietaire || ''} ${(p.details as ProprietairePhysique)?.NomProprietaire || ''}`
+                  : (p.details as ProprietaireMorale)?.NomEntreprise || ''}
+              </TableCell>
+              <TableCell className="flex space-x-2">
+                <Button variant="outline" onClick={() => handleOpen(p)}>Edit</Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">Delete</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+                    </AlertDialogHeader>
+                    <AlertDialogDescription>
+                      This action cannot be undone. Are you sure you want to delete this propriétaire?
+                    </AlertDialogDescription>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(p.ProprietaireID)}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingProprietaire ? 'Modifier Propriétaire' : 'Nouveau Propriétaire'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label>Type de Propriétaire</Label>
+              <Select 
+                value={formData.type} 
+                onValueChange={handleTypeChange}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {formData.type === 'Physique' ? 'Personne Physique' : 'Personne Morale'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Physique">Personne Physique</SelectItem>
+                  <SelectItem value="Morale">Personne Morale</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.type === 'Physique' ? (
+              <>
+                <div>
+                  <Label htmlFor="nomProprietaire">Nom</Label>
+                  <Input
+                    id="nomProprietaire"
+                    value={formData.nomProprietaire}
+                    onChange={(e) => setFormData(prev => ({ ...prev, nomProprietaire: e.target.value }))}
+                    placeholder="Enter nom"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="prenomProprietaire">Prénom</Label>
+                  <Input
+                    id="prenomProprietaire"
+                    value={formData.prenomProprietaire}
+                    onChange={(e) => setFormData(prev => ({ ...prev, prenomProprietaire: e.target.value }))}
+                    placeholder="Enter prénom"
+                    required
+                  />
+                </div>
+              </>
+            ) : (
+              <div>
+                <Label htmlFor="nomEntreprise">Nom de l'entreprise</Label>
+                <Input
+                  id="nomEntreprise"
+                  value={formData.nomEntreprise}
+                  onChange={(e) => setFormData(prev => ({ ...prev, nomEntreprise: e.target.value }))}
+                  placeholder="Enter nom de l'entreprise"
+                  required
+                />
+              </div>
+            )}
+            <Button type="submit" disabled={crudLoading}>
+              {crudLoading ? 'Saving...' : 'Save'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
 export default function DatabaseAdminPage() {
   return (
     <div className="container mx-auto p-4">
@@ -460,6 +876,8 @@ export default function DatabaseAdminPage() {
           <TabsTrigger value="provinces">Provinces</TabsTrigger>
           <TabsTrigger value="communes">Communes</TabsTrigger>
           <TabsTrigger value="marques">Marques</TabsTrigger>
+          <TabsTrigger value="gerants">Gérants</TabsTrigger>
+          <TabsTrigger value="proprietaires">Propriétaires</TabsTrigger>
         </TabsList>
         <TabsContent value="provinces">
           <ProvincesPanel />
@@ -469,6 +887,12 @@ export default function DatabaseAdminPage() {
         </TabsContent>
         <TabsContent value="marques">
           <MarquesPanel />
+        </TabsContent>
+        <TabsContent value="gerants">
+          <GerantsPanel />
+        </TabsContent>
+        <TabsContent value="proprietaires">
+          <ProprietairesPanel />
         </TabsContent>
       </Tabs>
     </div>

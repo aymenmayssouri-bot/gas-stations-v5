@@ -217,7 +217,7 @@ export default function StationsTable({
               <TableHeader label="N° MES" sortKey="NumeroMiseEnService" sortConfig={sortConfig} onSortChange={onSortChange} />
               <TableHeader label="Date MES" sortKey="DateMiseEnService" sortConfig={sortConfig} onSortChange={onSortChange} />
               <TableHeader label="Commentaire" sortKey="Commentaire" sortConfig={sortConfig} onSortChange={onSortChange} />
-              <TableHeader label="N° Volucompteur" sortKey="NombreVolucompteur" sortConfig={sortConfig} onSortChange={onSortChange} />
+              <TableHeader label="Nombre de Volucompteur" sortKey="NombreVolucompteur" sortConfig={sortConfig} onSortChange={onSortChange} />
               <th className="px-4 py-3 w-24 sticky top-0 bg-gray-50"></th>
             </tr>
           </thead>

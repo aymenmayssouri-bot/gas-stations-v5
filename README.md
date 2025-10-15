@@ -20,8 +20,6 @@ npx tailwindcss init -p
 2- wrap authentification pages / button Button in login ...
 
 
-3- Limit API by user
-
 5- Soft delete
 
 
