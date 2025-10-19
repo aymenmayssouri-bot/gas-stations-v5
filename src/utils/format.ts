@@ -3,15 +3,62 @@ import { StationWithDetails, ProprietairePhysique, ProprietaireMorale } from '@/
 
 export function formatDate(value: any): string {
   if (!value) return 'N/A';
+  
+  // Handle Date objects
   if (value instanceof Date) {
-    // Format as DD/MM/YYYY
-    return value.toLocaleDateString('fr-FR');
+    if (isNaN(value.getTime())) return 'N/A';
+    return value.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   }
+  
   // Handle Firestore Timestamps
   if (typeof value.toDate === 'function') {
-    return value.toDate().toLocaleDateString('fr-FR');
+    const date = value.toDate();
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   }
-  return String(value);
+  
+  // Handle string dates
+  if (typeof value === 'string') {
+    const date = new Date(value);
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    }
+  }
+  
+  return 'N/A';
+}
+
+// Add a new function to parse dates from dd/mm/yyyy format
+export function parseDateString(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  
+  // Handle dd/mm/yyyy format
+  const [day, month, year] = dateStr.split('/').map(Number);
+  const date = new Date(year, month - 1, day);
+  
+  return !isNaN(date.getTime()) ? date : null;
+}
+
+// Add a function to format date for input fields
+export function formatDateForInput(date: Date | null): string {
+  if (!date || isNaN(date.getTime())) return '';
+  
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  
+  return `${day}/${month}/${year}`;
 }
 
 /**

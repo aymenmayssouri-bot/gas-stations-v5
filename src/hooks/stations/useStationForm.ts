@@ -1,3 +1,4 @@
+// src/hooks/stations/useStationForm.ts
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -10,6 +11,15 @@ import { useGerants } from '@/hooks/ReferenceData/useGerants';
 import { useProprietaires } from '@/hooks/ReferenceData/useProprietaires';
 
 type Mode = 'create' | 'edit';
+
+type AutorisationError = Partial<Record<'TypeAutorisation' | 'NumeroAutorisation' | 'DateAutorisation', string>>;
+
+type StationFormErrors = Partial<{
+  [K in keyof StationFormData]: K extends 'autorisations' ? string | AutorisationError[] : string;
+}> & {
+  __form?: string;
+  submit?: string;
+};
 
 export function useStationForm(mode: Mode, station?: StationWithDetails) {
   const { createStation, loading: creating, error: createError } = useCreateStation();
@@ -48,7 +58,7 @@ export function useStationForm(mode: Mode, station?: StationWithDetails) {
   );
 
   const [form, setForm] = useState<StationFormData>(empty);
-  const [errors, setErrors] = useState<Partial<Record<keyof StationFormData | '__form', string>>>({});
+  const [errors, setErrors] = useState<StationFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [gerantSuggestions, setGerantSuggestions] = useState<Gerant[]>([]);
   const [proprietaireSuggestions, setProprietaireSuggestions] = useState<(Proprietaire & { details: ProprietairePhysique | ProprietaireMorale | null })[]>([]);

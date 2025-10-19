@@ -28,5 +28,4 @@ npx tailwindcss init -p
 
 6 station form :  date format
 
-7- Add proprietaire and gerant CRUD in admin
 

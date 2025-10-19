@@ -1,8 +1,9 @@
-﻿
+﻿// Sidebar.tsx
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Button } from '@/components/ui/Button'; // Assuming this is the path to the updated Button
 
 interface SidebarProps {
   open: boolean;
@@ -14,8 +15,8 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
   
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: '📊' },
-    { name: 'Gas Stations', href: '/stations', icon: '⛽' },
-    { name: 'Nearby Station', href: '/nearbyStation', icon: '📈' },
+    { name: 'Gas Stations', href: '/stations', icon: '📋' },
+    { name: 'Nearby Station', href: '/nearbyStation', icon: '🗺️' },
   ];
 
   return (
@@ -35,13 +36,15 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
         ${open ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex items-center justify-between h-16 px-4 bg-white border-b border-gray-200">
-          <div className="text-xl font-semibold text-gray-800">Gas Station Manager</div>
-          <button 
+          <div className="text-xl font-semibold text-gray-800">Gas Station Manager⛽</div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
             className="lg:hidden"
             onClick={() => setOpen(false)}
           >
             ✕
-          </button>
+          </Button>
         </div>
         
         <nav className="mt-8">

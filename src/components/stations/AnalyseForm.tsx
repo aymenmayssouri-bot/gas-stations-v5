@@ -6,6 +6,7 @@ import { useAnalyseForm } from '@/hooks/useStationData/useAnalyseForm';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
+import { formatDateForInput } from '@/utils/format';
 
 export interface AnalyseFormProps {
   mode: 'create' | 'edit';
@@ -62,26 +63,6 @@ export function AnalyseForm({ mode, stationId, stationCode, initialAnalyses = []
     removeForm(index);
   };
 
-  // Format date input to automatically insert slashes (../../....)
-  const handleDateChange = useCallback((index: number, value: string) => {
-    // Remove non-digit characters except slashes
-    let cleaned = value.replace(/[^\d/]/g, '');
-
-    // Automatically insert slashes
-    if (cleaned.length > 2 && cleaned[2] !== '/') {
-      cleaned = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
-    }
-    if (cleaned.length > 5 && cleaned[5] !== '/') {
-      cleaned = cleaned.slice(0, 5) + '/' + cleaned.slice(5);
-    }
-    // Limit to 10 characters (dd/mm/yyyy)
-    if (cleaned.length > 10) {
-      cleaned = cleaned.slice(0, 10);
-    }
-
-    updateField(index, 'DateAnalyse', cleaned);
-  }, [updateField]);
-
   return (
     <form onSubmit={handleSubmit} className="space-y-6 text-gray-900">
       <h2 className="text-lg font-medium text-gray-900">
@@ -110,11 +91,22 @@ export function AnalyseForm({ mode, stationId, stationCode, initialAnalyses = []
             <Input
               label="Date d'Analyse (dd/mm/yyyy)"
               type="text"
-              value={form.DateAnalyse}
-              onChange={(e) => handleDateChange(index, e.target.value)}
+              value={formatDateForInput(form.DateAnalyse ? new Date(form.DateAnalyse) : null)}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value.length <= 10) {
+                  let formattedValue = value.replace(/\D/g, '');
+                  if (formattedValue.length > 2) {
+                    formattedValue = formattedValue.slice(0, 2) + '/' + formattedValue.slice(2);
+                  }
+                  if (formattedValue.length > 5) {
+                    formattedValue = formattedValue.slice(0, 5) + '/' + formattedValue.slice(5);
+                  }
+                  updateField(index, 'DateAnalyse', formattedValue);
+                }
+              }}
+              placeholder="JJ/MM/AAAA"
               error={errors.forms?.[index]?.DateAnalyse}
-              placeholder="dd/mm/yyyy"
-              pattern="\d{2}/\d{2}/\d{4}"
               required
             />
 

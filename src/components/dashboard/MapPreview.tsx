@@ -6,6 +6,7 @@ import { StationWithDetails } from '@/types/station';
 import { getProprietaireName } from '@/utils/format';
 import { useApiUsage } from '@/hooks/useApiUsage';
 import { incrementApiUsage } from '@/lib/firebase/apiUsage';
+import { Button } from '@/components/ui';
 
 interface MapPreviewProps {
   stations: StationWithDetails[];
@@ -74,6 +75,7 @@ function getMarkerIcon(marque: string): google.maps.Symbol {
 export default function MapPreview({ stations }: MapPreviewProps) {
   const { usage } = useApiUsage();
   const [mapUsed, setMapUsed] = useState(false);
+  const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('roadmap');
   
   // Check if we can use the Maps API
   const canUseMap = usage ? !usage.maps.exceeded : true;
@@ -105,7 +107,8 @@ export default function MapPreview({ stations }: MapPreviewProps) {
       },
       strictBounds: false,
     },
-  }), []);
+    mapTypeId: mapType, 
+  }), [mapType]);  
 
   const onLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
@@ -166,70 +169,89 @@ export default function MapPreview({ stations }: MapPreviewProps) {
   if (!isLoaded) return <div>Chargement de la carte...</div>;
 
   return (
-    <GoogleMap
-      mapContainerStyle={mapContainerStyle}
-      zoom={6}
-      center={center}
-      onLoad={onLoad}
-      options={mapOptions}
-    >
-      {stations.map((s) =>
-        s.station.Latitude && s.station.Longitude ? (
-          <MarkerF
-            key={s.station.StationID}
-            position={{ lat: s.station.Latitude, lng: s.station.Longitude }}
-            onClick={() => setSelected(s)}
-            icon={getMarkerIcon(s.marque.Marque)}
-          />
-        ) : null
-      )}
-
-      {selected && selected.station.Latitude && selected.station.Longitude && (
-        <InfoWindow
-          position={{ lat: selected.station.Latitude, lng: selected.station.Longitude }}
-          onCloseClick={() => setSelected(null)}
+    <div className="relative h-full">
+      {/* Toggle Buttons - Placed above the map for easy access */}
+      <div className="absolute top-4 left-4 z-10 flex space-x-1">
+        <Button
+          onClick={() => setMapType('roadmap')}
+          variant={mapType === 'roadmap' ? 'default' : 'secondary'}
+          className="text-xs px-3 py-1"
         >
-          <div style={{ maxWidth: 280, padding: '4px' }}>
-            <h3 className="font-bold text-md mb-1">{selected.station.NomStation}</h3>
-            <div className="text-xs text-gray-600 mb-2">{selected.station.Adresse}</div>
+          Plan
+        </Button>
+        <Button
+          onClick={() => setMapType('satellite')}
+          variant={mapType === 'satellite' ? 'default' : 'secondary'}
+          className="text-xs px-3 py-1"
+        >
+          Satellite
+        </Button>
+      </div>
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        zoom={6}
+        center={center}
+        onLoad={onLoad}
+        options={mapOptions}
+      >
+        {stations.map((s) =>
+          s.station.Latitude && s.station.Longitude ? (
+            <MarkerF
+              key={s.station.StationID}
+              position={{ lat: s.station.Latitude, lng: s.station.Longitude }}
+              onClick={() => setSelected(s)}
+              icon={getMarkerIcon(s.marque.Marque)}
+            />
+          ) : null
+        )}
 
-            <div className="space-y-1 text-sm">
-              <div>
-                <strong>Code:</strong> {selected.station.Code}
+        {selected && selected.station.Latitude && selected.station.Longitude && (
+          <InfoWindow
+            position={{ lat: selected.station.Latitude, lng: selected.station.Longitude }}
+            onCloseClick={() => setSelected(null)}
+          >
+            <div style={{ maxWidth: 280, padding: '4px' }}>
+              <h3 className="font-bold text-md mb-1">{selected.station.NomStation}</h3>
+              <div className="text-xs text-gray-600 mb-2">{selected.station.Adresse}</div>
+
+              <div className="space-y-1 text-sm">
+                <div>
+                  <strong>Code:</strong> {selected.station.Code}
+                </div>
+                <div>
+                  <strong>Marque:</strong> {selected.marque.Marque}
+                </div>
+                <div>
+                  <strong>Propriétaire:</strong> {getProprietaireName(selected)}
+                </div>
+                <div>
+                  <strong>Gérant:</strong>{' '}
+                  {safeFullName(selected.gerant.PrenomGerant, selected.gerant.NomGerant)}
+                </div>
+                <div>
+                  <strong>Commune:</strong> {selected.commune.NomCommune}
+                </div>
+                <div>
+                  <strong>Province:</strong> {selected.province.NomProvince}
+                </div>
+                <div className="text-xs pt-1">
+                  <strong>Coords:</strong>{' '}
+                  {selected.station.Latitude.toFixed(5)}, {selected.station.Longitude.toFixed(5)}
+                </div>
               </div>
-              <div>
-                <strong>Marque:</strong> {selected.marque.Marque}
-              </div>
-              <div>
-                <strong>Propriétaire:</strong> {getProprietaireName(selected)}
-              </div>
-              <div>
-                <strong>Gérant:</strong>{' '}
-                {safeFullName(selected.gerant.PrenomGerant, selected.gerant.NomGerant)}
-              </div>
-              <div>
-                <strong>Commune:</strong> {selected.commune.NomCommune}
-              </div>
-              <div>
-                <strong>Province:</strong> {selected.province.NomProvince}
-              </div>
-              <div className="text-xs pt-1">
-                <strong>Coords:</strong>{' '}
-                {selected.station.Latitude.toFixed(5)}, {selected.station.Longitude.toFixed(5)}
+
+              <div className="mt-3">
+                <Link
+                  href={`/stations/${selected.station.StationID}`}
+                  className="inline-block px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 transition-colors"
+                >
+                  Voir détails
+                </Link>
               </div>
             </div>
-
-            <div className="mt-3">
-              <Link
-                href={`/stations/${selected.station.StationID}`}
-                className="inline-block px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 transition-colors"
-              >
-                Voir détails
-              </Link>
-            </div>
-          </div>
-        </InfoWindow>
-      )}
-    </GoogleMap>
+          </InfoWindow>
+        )}
+      </GoogleMap>
+    </div>
   );
 }

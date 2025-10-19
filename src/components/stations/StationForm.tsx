@@ -13,6 +13,10 @@ import { useProvinces } from '@/hooks/ReferenceData/useProvinces';
 import { useCommunes } from '@/hooks/ReferenceData/useCommunes';
 import { useGerants } from '@/hooks/ReferenceData/useGerants';
 import { useProprietaires } from '@/hooks/ReferenceData/useProprietaires';
+import { formatDate, parseDateString, formatDateForInput } from '@/utils/format';
+
+type AutorisationError = Partial<Record<'TypeAutorisation' | 'NumeroAutorisation' | 'DateAutorisation', string>>;
+
 
 export interface StationFormProps {
   mode: 'create' | 'edit';
@@ -285,96 +289,34 @@ export function StationForm({ mode, station, onSaved, onCancel }: StationFormPro
           <Input
             label="Latitude"
             name="Latitude"
-            type="number"
-            step="any"
-            value={form.Latitude || '0'}
+            value={form.Latitude || ''}
             onChange={(e) => updateField('Latitude', e.target.value)}
             error={errors.Latitude}
           />
           <Input
             label="Longitude"
             name="Longitude"
-            type="number"
-            step="any"
-            value={form.Longitude || '0'}
+            value={form.Longitude || ''}
             onChange={(e) => updateField('Longitude', e.target.value)}
             error={errors.Longitude}
           />
           <Select
-            label="Type de Gérance"
-            value={form.TypeGerance || 'libre'}
-            onChange={(e) => updateField('TypeGerance', e.target.value)}
-            options={[
-              { value: 'libre', label: 'Libre', id: 'gerance-libre' },
-              { value: 'direct', label: 'Direct', id: 'gerance-direct' },
-              { value: 'partenariat', label: 'Partenariat', id: 'gerance-partenariat' }
-            ]}
-          />
-          <Select
-            label="Statut"
-            value={form.Statut || 'en activité'}
-            onChange={(e) => updateField('Statut', e.target.value)}
-            options={[
-              { value: 'en activité', label: 'En activité', id: 'statut-activite' },
-              { value: 'en projet', label: 'En projet', id: 'statut-projet' },
-              { value: 'en arrêt', label: 'En arrêt', id: 'statut-arret' },
-              { value: 'archivé', label: 'Archivé', id: 'statut-archive' }
-            ]}
-          />
-          <Textarea
-            label="Commentaires"
-            name="Commentaires"
-            value={form.Commentaires || ''}
-            onChange={(e) => updateField('Commentaires', e.target.value)}
-            error={errors.Commentaires}
-            rows={4}
-          />
-          <Input
-            label="Nombre Volucompteur"
-            name="NombreVolucompteur"
-            type="number"
-            min="0"
-            value={form.NombreVolucompteur || '0'}
-            onChange={(e) => updateField('NombreVolucompteur', e.target.value)}
-            error={errors.NombreVolucompteur}
-          />
-        </div>
-      </fieldset>
-
-      {/* Marque et Localisation */}
-      <fieldset className="space-y-6">
-        <legend className="text-lg font-semibold border-b pb-2 w-full text-gray-900">
-          Marque et Localisation
-        </legend>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Select
-            label="Type de station"
-            name="Type"
-            value={form.Type || 'service'}
-            onChange={(e) => updateField('Type', e.target.value as StationFormData['Type'])}
+            label="Type"
+            value={form.Type || ''}
+            onChange={(e) => updateField('Type', e.target.value)}
             options={[
               { value: 'service', label: 'Service', id: 'type-service' },
-              { value: 'remplissage', label: 'Remplissage', id: 'type-remplissage' }
+              { value: 'distribution', label: 'Distribution', id: 'type-distribution' },
             ]}
             error={errors.Type}
           />
           <Select
             label="Marque"
-            name="Marque"
             value={form.Marque || ''}
-            onChange={(e) => {
-              const selectedValue = e.target.value;
-              const selectedMarque = marques.find(m => m.Marque === selectedValue);
-              updateField('Marque', selectedValue);
-              updateField('RaisonSociale', selectedMarque?.RaisonSociale || '');
-            }}
+            onChange={(e) => updateField('Marque', e.target.value)}
             options={[
               { value: '', label: '-- choisir --', id: 'marque-empty' },
-              ...marques.map(m => ({ 
-                value: m.Marque, 
-                label: m.Marque,
-                id: m.MarqueID 
-              }))
+              ...marques.map(m => ({ value: m.Marque, label: m.Marque, id: m.MarqueID }))
             ]}
             error={errors.Marque}
           />
@@ -542,17 +484,34 @@ export function StationForm({ mode, station, onSaved, onCancel }: StationFormPro
                     label: type === 'création' ? 'Création' : 'Mise en service',
                     id: `auto-${index}-${type}` 
                   }))}
+                  error={(errors.autorisations as AutorisationError[] | undefined)?.[index]?.TypeAutorisation}
                 />
                 <Input
                   label="Numéro"
                   value={auto.NumeroAutorisation || ''}
                   onChange={(e) => updateAutorisationField(index, 'NumeroAutorisation', e.target.value)}
+                  error={(errors.autorisations as AutorisationError[] | undefined)?.[index]?.NumeroAutorisation}
                 />
                 <Input
-                  type="date"
                   label="Date"
-                  value={auto.DateAutorisation || ''}
-                  onChange={(e) => updateAutorisationField(index, 'DateAutorisation', e.target.value)}
+                  value={formatDateForInput(auto.DateAutorisation ? parseDateString(auto.DateAutorisation) : null)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Allow typing the date with slashes
+                    if (value.length <= 10) {
+                      // Automatically add slashes
+                      let formattedValue = value.replace(/\D/g, '');
+                      if (formattedValue.length > 2) {
+                        formattedValue = formattedValue.slice(0, 2) + '/' + formattedValue.slice(2);
+                      }
+                      if (formattedValue.length > 5) {
+                        formattedValue = formattedValue.slice(0, 5) + '/' + formattedValue.slice(5);
+                      }
+                      updateAutorisationField(index, 'DateAutorisation', formattedValue);
+                    }
+                  }}
+                  placeholder="JJ/MM/AAAA"
+                  error={(errors.autorisations as AutorisationError[] | undefined)?.[index]?.DateAutorisation}
                 />
                 {autorisations.length > 1 && (
                   <div className="flex items-end">
@@ -567,7 +526,7 @@ export function StationForm({ mode, station, onSaved, onCancel }: StationFormPro
         ) : (
           <p className="text-sm text-gray-500">Aucune autorisation enregistrée.</p>
         )}
-        {errors.autorisations && (
+        {typeof errors.autorisations === 'string' && errors.autorisations && (
           <div>
             <span className="text-sm text-red-500">{errors.autorisations}</span>
           </div>
@@ -605,6 +564,55 @@ export function StationForm({ mode, station, onSaved, onCancel }: StationFormPro
             onChange={(e) => updateField('CapaciteSSP', e.target.value)}
             error={errors.CapaciteSSP}
           />
+        </div>
+      </fieldset>
+
+      {/* Autres Informations */}
+      <fieldset className="space-y-6">
+        <legend className="text-lg font-semibold border-b pb-2 w-full text-gray-900">
+          Autres Informations
+        </legend>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Select
+            label="Type de Gérance"
+            value={form.TypeGerance || ''}
+            onChange={(e) => updateField('TypeGerance', e.target.value)}
+            options={[
+              { value: 'libre', label: 'Libre', id: 'gerance-libre' },
+              { value: 'gérée', label: 'Gérée', id: 'gerance-geree' },
+              // Add more options if known
+            ]}
+            error={errors.TypeGerance}
+          />
+          <Select
+            label="Statut"
+            value={form.Statut || ''}
+            onChange={(e) => updateField('Statut', e.target.value)}
+            options={[
+              { value: 'en activité', label: 'En activité', id: 'statut-activite' },
+              { value: 'fermée', label: 'Fermée', id: 'statut-fermee' },
+              // Add more options if known
+            ]}
+            error={errors.Statut}
+          />
+          <Input
+            label="Nombre de Volucompteurs"
+            name="NombreVolucompteur"
+            type="number"
+            min="0"
+            value={form.NombreVolucompteur || '0'}
+            onChange={(e) => updateField('NombreVolucompteur', e.target.value)}
+            error={errors.NombreVolucompteur}
+          />
+          <div className="col-span-2">
+            <Textarea
+              label="Commentaires"
+              name="Commentaires"
+              value={form.Commentaires || ''}
+              onChange={(e) => updateField('Commentaires', e.target.value)}
+              error={errors.Commentaires}
+            />
+          </div>
         </div>
       </fieldset>
 

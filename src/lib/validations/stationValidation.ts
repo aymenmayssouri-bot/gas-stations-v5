@@ -1,7 +1,14 @@
 // src/lib/validations/stationValidation.ts
+import { parseDateString } from '@/utils/format';
 import { StationFormData } from '@/types/station';
 
-export type NormalizedFormErrors = Partial<Record<keyof StationFormData | 'submit', string>>;
+type AutorisationError = Partial<Record<'TypeAutorisation' | 'NumeroAutorisation' | 'DateAutorisation', string>>;
+
+export type NormalizedFormErrors = Partial<{
+  [K in keyof StationFormData]: K extends 'autorisations' ? string | AutorisationError[] : string;
+}> & {
+  submit?: string;
+};
 
 export function validateStationData(data: StationFormData): { 
   isValid: boolean; 
@@ -69,26 +76,34 @@ export function validateStationData(data: StationFormData): {
   if (!data.autorisations || data.autorisations.length === 0) {
     errors.autorisations = 'Au moins une autorisation est requise';
   } else {
-    const hasValidAutorisation = data.autorisations.some(
-      auto => auto.NumeroAutorisation.trim() && auto.TypeAutorisation
-    );
-    
-    if (!hasValidAutorisation) {
-      errors.autorisations = 'Champ obligatoire - Au moins une autorisation complète est requise';
-    }
+    const autorisationErrors: AutorisationError[] = data.autorisations.map(() => ({}));
+    let hasErrors = false;
 
-    // Validate each autorisation
     data.autorisations.forEach((auto, index) => {
-      if (!auto.DateAutorisation || auto.DateAutorisation === 'YYYY-MM-DD') {
-        // This is the new required field error
-        errors.autorisations = `Champ obligatoire - Date d'autorisation requise pour l'autorisation ${index + 1}`;
+      if (!auto.TypeAutorisation) {
+        autorisationErrors[index].TypeAutorisation = 'Type obligatoire';
+        hasErrors = true;
       }
-      if (auto.DateAutorisation && !/^\d{4}-\d{2}-\d{2}$/.test(auto.DateAutorisation)) {
-        errors.autorisations = `Format de date invalide pour l'autorisation ${index + 1} (YYYY-MM-DD)`;
+      if (!auto.NumeroAutorisation.trim()) {
+        autorisationErrors[index].NumeroAutorisation = 'Numéro obligatoire';
+        hasErrors = true;
+      }
+      if (!auto.DateAutorisation.trim()) {
+        autorisationErrors[index].DateAutorisation = 'Date obligatoire';
+        hasErrors = true;
+      } else {
+        const parsedDate = parseDateString(auto.DateAutorisation);
+        if (!parsedDate) {
+          autorisationErrors[index].DateAutorisation = 'Format de date invalide (JJ/MM/AAAA)';
+          hasErrors = true;
+        }
       }
     });
-  }
 
+    if (hasErrors) {
+      errors.autorisations = autorisationErrors;
+    }
+  }
 
   // Validate Telephone format (basic example, adjust as needed)
   if (data.Telephone.trim() && !/^\+?\d{9,15}$/.test(data.Telephone.trim())) {

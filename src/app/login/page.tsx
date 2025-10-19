@@ -1,9 +1,11 @@
+// LoginPage
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/provider';
+import { Button } from '@/components/ui/Button'; // Assuming this is the path to the updated Button
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -48,9 +50,12 @@ export default function LoginPage() {
           placeholder="Password"
           required
         />
-        <button disabled={loading} className="w-full rounded bg-blue-600 text-white py-2 disabled:opacity-50">
+        <Button 
+          disabled={loading} 
+          className="w-full" // Removed custom classes to let Button handle styling
+        >
           {loading ? 'Signing in…' : 'Sign in'}
-        </button>
+        </Button>
         <p className="text-sm text-center">
           Don’t have an account? <Link className="text-blue-600" href="/signup">Sign up</Link>
         </p>
