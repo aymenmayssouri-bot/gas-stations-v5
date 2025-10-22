@@ -1,6 +1,19 @@
 // src/utils/stationFormUtils.ts
 import { StationWithDetails, StationFormData } from '@/types/station';
 
+/**
+ * Format a Date object to DD/MM/YYYY string for form input
+ */
+function formatDateForInput(date: Date | null): string {
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) return '';
+  
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  
+  return `${day}/${month}/${year}`;
+}
+
 export function stationWithDetailsToFormData(stationData: StationWithDetails): StationFormData {
   const { station, marque, commune, province, gerant, proprietaire, autorisations, capacites } = stationData;
 
@@ -8,21 +21,12 @@ export function stationWithDetailsToFormData(stationData: StationWithDetails): S
   const gasoilCapacity = capacites?.find(c => c.TypeCarburant === 'Gasoil');
   const sspCapacity = capacites?.find(c => c.TypeCarburant === 'SSP');
 
-  // Format date for HTML input
-  const formatDateForInput = (date: Date | null): string => {
-    if (!date) return '';
-    if (date instanceof Date) {
-      return date.toISOString().split('T')[0];
-    }
-    return '';
-  };
-
   return {
     id: station.StationID,
     NomStation: station.NomStation || '',
     Adresse: station.Adresse || '',
-    Latitude: station.Latitude ? station.Latitude.toString() : '0', // Default to '0' for number input
-    Longitude: station.Longitude ? station.Longitude.toString() : '0', // Default to '0' for number input
+    Latitude: station.Latitude ? station.Latitude.toString() : '0',
+    Longitude: station.Longitude ? station.Longitude.toString() : '0',
     Type: station.Type || 'service',
     Marque: marque?.Marque || '',
     RaisonSociale: marque?.RaisonSociale || '',
@@ -42,16 +46,19 @@ export function stationWithDetailsToFormData(stationData: StationWithDetails): S
     NomEntreprise: proprietaire?.base?.TypeProprietaire === 'Morale'
       ? (proprietaire.details as any)?.NomEntreprise || ''
       : '',
-    autorisations: autorisations?.map(a => ({
-      TypeAutorisation: a.TypeAutorisation,
-      NumeroAutorisation: a.NumeroAutorisation || '',
-      DateAutorisation: formatDateForInput(a.DateAutorisation)
-    })) ?? [{ TypeAutorisation: 'création', NumeroAutorisation: '', DateAutorisation: '' }],
-    CapaciteGasoil: gasoilCapacity?.CapaciteLitres?.toString() || '0', // Default to '0' for number input
-    CapaciteSSP: sspCapacity?.CapaciteLitres?.toString() || '0', // Default to '0' for number input
+    autorisations: autorisations?.length > 0 
+      ? autorisations.map(a => ({
+          TypeAutorisation: a.TypeAutorisation,
+          NumeroAutorisation: a.NumeroAutorisation || '',
+          // Convert Date to DD/MM/YYYY format
+          DateAutorisation: formatDateForInput(a.DateAutorisation)
+        }))
+      : [{ TypeAutorisation: 'création', NumeroAutorisation: '', DateAutorisation: '' }],
+    CapaciteGasoil: gasoilCapacity?.CapaciteLitres?.toString() || '0',
+    CapaciteSSP: sspCapacity?.CapaciteLitres?.toString() || '0',
     TypeGerance: station.TypeGerance || 'libre',
     Statut: station.Statut || 'en activité',
-    Commentaires: station.Commentaires || '', // Added to match StationFormData
-    NombreVolucompteur: station.NombreVolucompteur ? station.NombreVolucompteur.toString() : '0' // Default to '0'
+    Commentaires: station.Commentaires || '',
+    NombreVolucompteur: station.NombreVolucompteur ? station.NombreVolucompteur.toString() : '0'
   };
 }

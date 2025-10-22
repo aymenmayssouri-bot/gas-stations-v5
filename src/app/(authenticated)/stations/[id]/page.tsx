@@ -12,7 +12,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useAnalysesIndex } from '@/hooks/useStationData/useAnalysesIndex';
 import AnalyseTable from '@/components/stations/AnalyseTable';
 import AnalyseForm from '@/components/stations/AnalyseForm';
-import { useDeleteStation } from '@/hooks/stations/useDeleteStation';
+import { useArchiveStation } from '@/hooks/stations/useArchiveStation';
 
 const GoogleMap = dynamic(() => import('@/components/dashboard/MapPreview'), { ssr: false });
 
@@ -21,7 +21,7 @@ export default function StationDetailPage() {
   const router = useRouter();
   const { stations, loading: stationsLoading, error: stationsError, refetch } = useStations();
   const { analyses, loading: analysesLoading, error: analysesError, refetch: refetchAnalyses } = useAnalysesIndex(id);
-  const { deleteStation, loading: deleteLoading } = useDeleteStation();
+  const { archiveStation, loading: archiveLoading } = useArchiveStation();
 
   const [station, setStation] = useState<StationWithDetails | null>(null);
   const [showStationForm, setShowStationForm] = useState(false);
@@ -76,18 +76,20 @@ export default function StationDetailPage() {
     setEditingAnalyse(undefined);
   };
 
-  const handleDelete = async () => {
-    if (!station || deleteLoading) return;
+  const handleArchive = async () => {
+    if (!station || archiveLoading) return;
 
-    if (!confirm("Est-ce que vous êtes sûr de vouloir supprimer cette station ?")) {
+    if (!confirm("Êtes-vous sûr de vouloir archiver cette station ?")) {
       return;
     }
 
     try {
-      await deleteStation(station.station.StationID);
-      router.push('/stations');
+      await archiveStation(station.station.StationID);
+      await refetch();
+      // Optionally redirect or show a success message
+      // router.push('/stations');
     } catch (error) {
-      console.error('Failed to delete station:', error);
+      console.error('Failed to archive station:', error);
     }
   };
 
@@ -120,13 +122,28 @@ export default function StationDetailPage() {
     );
   }
 
+  const isArchived = station.station.Statut === 'archivé';
+
   return (
     <div className="p-6 space-y-6 text-gray-900">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">{station.station.NomStation}</h1>
+        <div>
+          <h1 className="text-2xl font-bold">{station.station.NomStation}</h1>
+          {isArchived && (
+            <span className="inline-block mt-2 px-3 py-1 text-sm font-medium text-gray-600 bg-gray-200 rounded-full">
+              Archivé
+            </span>
+          )}
+        </div>
         <div className="space-x-2">
-          <Button onClick={handleEditStation}>Modifier la station</Button>
-          <Button onClick={handleDelete} variant="danger">Supprimer</Button>
+          <Button onClick={handleEditStation} disabled={isArchived}>
+            Modifier la station
+          </Button>
+          {!isArchived && (
+            <Button onClick={handleArchive} variant="danger" disabled={archiveLoading}>
+              {archiveLoading ? 'Archivage...' : 'Archiver'}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -224,7 +241,9 @@ export default function StationDetailPage() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Analyses</CardTitle>
-            <Button onClick={handleCreateAnalyse}>Ajouter une analyse</Button>
+            <Button onClick={handleCreateAnalyse} disabled={isArchived}>
+              Ajouter une analyse
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -252,7 +271,7 @@ export default function StationDetailPage() {
         <AnalyseForm
           mode={analyseFormMode}
           stationId={id}
-          stationCode={String(station.station.Code) || 'N/A'} // Convert Code to string
+          stationCode={String(station.station.Code) || 'N/A'}
           initialAnalyses={initialAnalyses}
           onSaved={handleAnalyseFormSaved}
           onCancel={handleAnalyseFormCancel}

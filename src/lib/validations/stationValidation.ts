@@ -1,5 +1,5 @@
 // src/lib/validations/stationValidation.ts
-import { parseDateString } from '@/utils/format';
+import { parseDateString, isValidDateString } from '@/utils/format';
 import { StationFormData } from '@/types/station';
 
 type AutorisationError = Partial<Record<'TypeAutorisation' | 'NumeroAutorisation' | 'DateAutorisation', string>>;
@@ -80,22 +80,35 @@ export function validateStationData(data: StationFormData): {
     let hasErrors = false;
 
     data.autorisations.forEach((auto, index) => {
+      // Validate TypeAutorisation
       if (!auto.TypeAutorisation) {
         autorisationErrors[index].TypeAutorisation = 'Type obligatoire';
         hasErrors = true;
       }
+      
+      // Validate NumeroAutorisation
       if (!auto.NumeroAutorisation.trim()) {
         autorisationErrors[index].NumeroAutorisation = 'Numéro obligatoire';
         hasErrors = true;
       }
+      
+      // Validate DateAutorisation
       if (!auto.DateAutorisation.trim()) {
         autorisationErrors[index].DateAutorisation = 'Date obligatoire';
         hasErrors = true;
       } else {
-        const parsedDate = parseDateString(auto.DateAutorisation);
-        if (!parsedDate) {
-          autorisationErrors[index].DateAutorisation = 'Format de date invalide (JJ/MM/AAAA)';
+        // Check if date format is correct (DD/MM/YYYY)
+        const datePattern = /^\d{2}\/\d{2}\/\d{4}$/;
+        if (!datePattern.test(auto.DateAutorisation)) {
+          autorisationErrors[index].DateAutorisation = 'Format invalide (JJ/MM/AAAA requis)';
           hasErrors = true;
+        } else {
+          // Parse and validate the date
+          const parsedDate = parseDateString(auto.DateAutorisation);
+          if (!parsedDate) {
+            autorisationErrors[index].DateAutorisation = 'Date invalide';
+            hasErrors = true;
+          }
         }
       }
     });
@@ -105,7 +118,7 @@ export function validateStationData(data: StationFormData): {
     }
   }
 
-  // Validate Telephone format (basic example, adjust as needed)
+  // Validate Telephone format
   if (data.Telephone.trim() && !/^\+?\d{9,15}$/.test(data.Telephone.trim())) {
     errors.Telephone = 'Numéro de téléphone invalide (9 à 15 chiffres, + facultatif)';
   }

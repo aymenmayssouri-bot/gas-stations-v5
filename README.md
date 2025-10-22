@@ -24,8 +24,3 @@ npx tailwindcss init -p
 
 
 6- Search bar (doesn't delete text serched)
-
-
-6 station form :  date format
-
-

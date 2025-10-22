@@ -13,7 +13,6 @@ import { useProvinces } from '@/hooks/ReferenceData/useProvinces';
 import { useCommunes } from '@/hooks/ReferenceData/useCommunes';
 import { useGerants } from '@/hooks/ReferenceData/useGerants';
 import { useProprietaires } from '@/hooks/ReferenceData/useProprietaires';
-import { formatDate, parseDateString, formatDateForInput } from '@/utils/format';
 
 type AutorisationError = Partial<Record<'TypeAutorisation' | 'NumeroAutorisation' | 'DateAutorisation', string>>;
 
@@ -494,23 +493,45 @@ export function StationForm({ mode, station, onSaved, onCancel }: StationFormPro
                 />
                 <Input
                   label="Date"
-                  value={formatDateForInput(auto.DateAutorisation ? parseDateString(auto.DateAutorisation) : null)}
+                  value={auto.DateAutorisation || ''}
                   onChange={(e) => {
-                    const value = e.target.value;
-                    // Allow typing the date with slashes
-                    if (value.length <= 10) {
-                      // Automatically add slashes
-                      let formattedValue = value.replace(/\D/g, '');
-                      if (formattedValue.length > 2) {
-                        formattedValue = formattedValue.slice(0, 2) + '/' + formattedValue.slice(2);
+                    let value = e.target.value;
+                    
+                    // Remove any non-digit characters except /
+                    value = value.replace(/[^\d/]/g, '');
+    
+                    // Auto-format as user types
+                    const parts = value.split('/');
+                    let formatted = '';
+                    
+                    if (parts[0]) {
+                      // Day: max 2 digits, max value 31
+                      let day = parts[0].slice(0, 2);
+                      if (parseInt(day) > 31) day = '31';
+                      formatted = day;
+                      
+                      if (parts.length > 1) {
+                        formatted += '/';
+                        // Month: max 2 digits, max value 12
+                        let month = parts[1].slice(0, 2);
+                        if (parseInt(month) > 12) month = '12';
+                        formatted += month;
+                        
+                        if (parts.length > 2) {
+                          formatted += '/';
+                          // Year: max 4 digits
+                          formatted += parts[2].slice(0, 4);
+                        }
                       }
-                      if (formattedValue.length > 5) {
-                        formattedValue = formattedValue.slice(0, 5) + '/' + formattedValue.slice(5);
-                      }
-                      updateAutorisationField(index, 'DateAutorisation', formattedValue);
+                    }
+                    
+                    // Limit to 10 characters (DD/MM/YYYY)
+                    if (formatted.length <= 10) {
+                      updateAutorisationField(index, 'DateAutorisation', formatted);
                     }
                   }}
                   placeholder="JJ/MM/AAAA"
+                  maxLength={10}
                   error={(errors.autorisations as AutorisationError[] | undefined)?.[index]?.DateAutorisation}
                 />
                 {autorisations.length > 1 && (
@@ -579,8 +600,8 @@ export function StationForm({ mode, station, onSaved, onCancel }: StationFormPro
             onChange={(e) => updateField('TypeGerance', e.target.value)}
             options={[
               { value: 'libre', label: 'Libre', id: 'gerance-libre' },
-              { value: 'gérée', label: 'Gérée', id: 'gerance-geree' },
-              // Add more options if known
+              { value: 'direct', label: 'Direct', id: 'gerance-direct' },
+              { value: 'partenariat', label: 'Partenariat', id: 'gerance-partenariat' }
             ]}
             error={errors.TypeGerance}
           />
@@ -590,8 +611,9 @@ export function StationForm({ mode, station, onSaved, onCancel }: StationFormPro
             onChange={(e) => updateField('Statut', e.target.value)}
             options={[
               { value: 'en activité', label: 'En activité', id: 'statut-activite' },
-              { value: 'fermée', label: 'Fermée', id: 'statut-fermee' },
-              // Add more options if known
+              { value: 'en projet', label: 'En projet', id: 'statut-projet' },
+              { value: 'en arrêt', label: 'En arrêt', id: 'statut-arret' },
+              { value: 'archivé', label: 'Archivé', id: 'statut-archive' }
             ]}
             error={errors.Statut}
           />
