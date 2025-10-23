@@ -17,10 +17,4 @@ npx tailwindcss init -p
 1-overview of code and files (security, delete, optimize)
 
 
-2- wrap authentification pages / button Button in login ...
-
-
-5- Soft delete
-
-
-6- Search bar (doesn't delete text serched)
+2- wrap authentification pages 

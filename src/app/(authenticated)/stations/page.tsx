@@ -138,7 +138,7 @@ export default function StationsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'Code', direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
-  const [columnFilters, setColumnFilters] = useState<FilterConfig[]>([]);
+  const [columnFilters, setColumnFilters] = useState<FilterConfig[]>([{ key: 'Statut', value: 'en activité' }]);
   const [analysisStatus, setAnalysisStatus] = useState<'all' | 'analysed' | 'not-analysed'>('all');
   const [analysisYear, setAnalysisYear] = useState<number[]>([]);
   const [triggerExport, setTriggerExport] = useState(false);

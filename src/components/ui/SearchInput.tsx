@@ -27,10 +27,15 @@ export function SearchInput({
   }, [value]);
 
   useEffect(() => {
-    if (debouncedValue !== value) {
-      onChange(debouncedValue);
-    }
-  }, [debouncedValue, value, onChange]);
+    onChange(debouncedValue);
+  }, [debouncedValue, onChange]);  // Removed 'value' from deps; removed the if check
+
+  const handleClear = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLocalValue('');
+    onChange('');
+  };
 
   return (
     <div className={`relative ${className}`}>
@@ -54,18 +59,17 @@ export function SearchInput({
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+        className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
       />
       {localValue && (
         <button
-          onClick={() => {
-            setLocalValue('');
-            onChange(''); // Directly update parent state
-          }}
-          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+          type="button"
+          onClick={handleClear}
+          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+          aria-label="Clear search"
         >
           <svg
-            className="h-4 w-4 text-gray-400 hover:text-gray-600"
+            className="h-4 w-4"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
