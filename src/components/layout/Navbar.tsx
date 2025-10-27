@@ -49,9 +49,9 @@ export default function Navbar({ user, onLogout, onMenuClick }: NavbarProps) {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-500">Distance:</span>
-                  <span className={`font-semibold ${getUsageColor(usage.distanceMatrix.percentage)}`}>
-                    {usage.distanceMatrix.remaining.toLocaleString()} / {usage.distanceMatrix.limit.toLocaleString()}
+                  <span className="text-gray-500">Distance:</span> {/* Or change to "Routes:" */}
+                  <span className={`font-semibold ${getUsageColor(usage.routes.percentage)}`}>
+                    {usage.routes.remaining.toLocaleString()} / {usage.routes.limit.toLocaleString()}
                   </span>
                 </div>
               </div>

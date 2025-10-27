@@ -5,7 +5,7 @@ import { useStations } from './useStations';
 import { getApiUsage, canUseApi, incrementApiUsage } from '@/lib/firebase/apiUsage';
 
 const MAX_DRIVING_KM = 20;
-const MAX_DEST_PER_REQUEST = 20;
+const MAX_DEST_PER_REQUEST = 25;
 const CACHE_TTL_MS = 1000 * 60 * 5;
 
 const distanceCache = new Map<string, { distanceKm: number; timestamp: number }>();
@@ -108,13 +108,13 @@ export function useNearbyStations() {
           }
         }
 
-        // 4. Calculate total elements needed
-        const totalElements = destinationsToFetch.length; // 1 origin × N destinations
+        // 4. Calculate total requests needed (1 request per destination with Routes API)
+        const totalRequests = destinationsToFetch.length;
         
         // Check if we have enough quota
-        if (!canUseApi('distance_matrix_api', usage.distance_matrix_api, totalElements)) {
+        if (!canUseApi('routes_api', usage.routes_api, totalRequests)) {
           setNearbyError(
-            `Quota Distance Matrix API dépassé. Limite quotidienne atteinte (${usage.distance_matrix_api}/${2500}). Réinitialisation à minuit.`
+            `Quota Routes API dépassé. Limite quotidienne atteinte (${usage.routes_api}/${333}). Réinitialisation à minuit.`
           );
           setNearbyStations([]);
           return;
@@ -123,40 +123,52 @@ export function useNearbyStations() {
         // 5. Fetch Distances for Non-Cached Stations in Chunks
         for (let i = 0; i < destinationsToFetch.length; i += MAX_DEST_PER_REQUEST) {
           const chunk = destinationsToFetch.slice(i, i + MAX_DEST_PER_REQUEST);
-          const originStr = `${roundedLat},${roundedLng}`;
-          const destStr = chunk.map(c => 
-            `${c.station.station.Latitude!.toFixed(6)},${c.station.station.Longitude!.toFixed(6)}`
-          ).join('|');
           
-          const url = `/api/distance-matrix?origins=${encodeURIComponent(originStr)}&destinations=${encodeURIComponent(destStr)}&mode=driving`;
-          const response = await fetch(url);
+          const origin = {
+            lat: roundedLat,
+            lng: roundedLng
+          };
+          
+          const destinations = chunk.map(c => ({
+            lat: c.station.station.Latitude!,
+            lng: c.station.station.Longitude!
+          }));
+          
+          const url = `/api/routes`;
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ origin, destinations })
+          });
           
           if (!response.ok) {
             const errorData = await response.json();
-            if (errorData.quotaExceeded) {
+            if (errorData.error && errorData.error.includes('Rate limit')) {
               setNearbyError(errorData.error);
               setNearbyStations([]);
               return;
             }
-            throw new Error('Erreur de l\'API de distance.');
+            throw new Error('Erreur de l\'API Routes.');
           }
           
           const data = await response.json();
+          
           if (data.status !== 'OK') {
-            throw new Error(data.error_message || `API Error: ${data.status}`);
+            throw new Error(`API Error: ${data.status}`);
           }
           
-          // Increment usage for this chunk
-          const elementsUsed = chunk.length; // 1 origin × chunk.length destinations
-          await incrementApiUsage('distance_matrix_api', elementsUsed);
+          // Increment usage for this chunk (1 request per destination)
+          await incrementApiUsage('routes_api', chunk.length);
           
-          const elements = data.rows[0].elements;
-          elements.forEach((element: any, index: number) => {
+          const results = data.results;
+          results.forEach((result: any, index: number) => {
             const correspondingStation = chunk[index];
             let distanceKm = Infinity;
 
-            if (element.status === 'OK' && element.distance) {
-              distanceKm = element.distance.value / 1000;
+            if (result.status === 'OK' && result.distance) {
+              distanceKm = result.distance / 1000; // Convert meters to km
             }
             
             // Add to cache

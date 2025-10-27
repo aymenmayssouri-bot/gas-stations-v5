@@ -3,8 +3,8 @@ import { db } from './config';
 import { doc, getDoc, setDoc, increment } from 'firebase/firestore';
 
 const QUOTAS = {
-  maps_js_api: 933, // ~28,000/month ÷ 30 days
-  distance_matrix_api: 2500, // elements per day
+  maps_js_api: 333, // Free tier limit
+  routes_api: 333, // Free tier limit (replacing distance_matrix_api)
 };
 
 // Get today's date in YYYY-MM-DD format
@@ -12,11 +12,11 @@ function getTodayId(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export type ApiType = 'maps_js_api' | 'distance_matrix_api';
+export type ApiType = 'maps_js_api' | 'routes_api';
 
 export interface ApiUsageData {
   maps_js_api: number;
-  distance_matrix_api: number;
+  routes_api: number;
   date: string;
 }
 
@@ -28,15 +28,12 @@ export async function getApiUsage(): Promise<ApiUsageData> {
     const docRef = doc(db, 'api_usage', getTodayId());
     const snap = await getDoc(docRef);
     
-    if (snap.exists()) {
-      return snap.data() as ApiUsageData;
-    }
+    const data = snap.exists() ? snap.data() ?? {} : {};
     
-    // If document doesn't exist, return zeros
     return {
-      maps_js_api: 0,
-      distance_matrix_api: 0,
-      date: getTodayId(),
+      maps_js_api: data.maps_js_api ?? 0,
+      routes_api: data.routes_api ?? data.distance_matrix_api ?? 0,
+      date: data.date ?? getTodayId(),
     };
   } catch (error) {
     console.error('Error fetching API usage:', error);

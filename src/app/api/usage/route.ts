@@ -7,7 +7,7 @@ export async function GET() {
     const usage = await getApiUsage();
     return NextResponse.json({
       maps: usage.maps_js_api,
-      distanceMatrix: usage.distance_matrix_api
+      routes: usage.routes_api ?? 0, // Handle old field
     });
   } catch (error) {
     console.error('Error fetching API usage:', error);

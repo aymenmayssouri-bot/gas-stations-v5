@@ -14,7 +14,7 @@ interface QuotaInfo {
 
 interface ApiUsageState {
   maps: QuotaInfo;
-  distanceMatrix: QuotaInfo;
+  routes: QuotaInfo;
 }
 
 function getTodayId(): string {
@@ -35,7 +35,7 @@ export function useApiUsage() {
         
         setUsage({
           maps: getQuotaInfo('maps_js_api', data.maps_js_api),
-          distanceMatrix: getQuotaInfo('distance_matrix_api', data.distance_matrix_api),
+          routes: getQuotaInfo('routes_api', data.routes_api),
         });
         
         setError(null);
@@ -55,16 +55,16 @@ export function useApiUsage() {
       docRef,
       (snapshot) => {
         if (snapshot.exists()) {
-          const data = snapshot.data() as ApiUsageData;
+          const data = snapshot.data() ?? {};
           setUsage({
-            maps: getQuotaInfo('maps_js_api', data.maps_js_api || 0),
-            distanceMatrix: getQuotaInfo('distance_matrix_api', data.distance_matrix_api || 0),
+            maps: getQuotaInfo('maps_js_api', data.maps_js_api ?? 0),
+            routes: getQuotaInfo('routes_api', data.routes_api ?? data.distance_matrix_api ?? 0),
           });
         } else {
           // Document doesn't exist yet today
           setUsage({
             maps: getQuotaInfo('maps_js_api', 0),
-            distanceMatrix: getQuotaInfo('distance_matrix_api', 0),
+            routes: getQuotaInfo('routes_api', 0),
           });
         }
       },
