@@ -3,8 +3,8 @@ import { db } from './config';
 import { doc, getDoc, setDoc, increment } from 'firebase/firestore';
 
 const QUOTAS = {
-  maps_js_api: 333, // Free tier limit
-  routes_api: 333, // Free tier limit (replacing distance_matrix_api)
+  maps_js_api: 100, // Free tier limit
+  routes_api: 566, // Free tier limit (replacing distance_matrix_api)
 };
 
 // Get today's date in YYYY-MM-DD format

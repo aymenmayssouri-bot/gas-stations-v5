@@ -1,12 +1,14 @@
 {
   "name": "gas-stations-v5",
-  "version": "0.1.0",
+  "version": "1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "deploy": "firebase deploy --only hosting",
+    "deploy:all": "firebase deploy"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
